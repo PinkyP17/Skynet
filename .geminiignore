@@ -1,0 +1,21 @@
+# Ignore build artifacts
+target/
+*.jar
+*.class
+
+# Ignore IDE files
+.idea/
+*.iml
+.settings/
+.project/
+.classpath/
+
+# Ignore local database if needed (but keep reference in GEMINI.md)
+# src/main/resources/dataBase/applicationDataBase.db
+
+# Ignore logs
+*.log
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
