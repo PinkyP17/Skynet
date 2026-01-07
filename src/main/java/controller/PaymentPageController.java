@@ -157,11 +157,33 @@ public class PaymentPageController implements Initializable {
         }
         Reservation reservation = new Reservation(flight, Account.getCurrentUser().getId(), selectedSeat, spinnerLuggage.getValue(), spinnerWeight.getValue());
 
-        if (Account.getCurrentUser().hasReservation(flight)) {
-            reservationDao.update(Account.getCurrentUser().getReservation(flight).getId(), reservation);
+        // Hybrid approach: Try Spring Boot Service first, fallback to DAO
+        boolean serviceSuccess = false;
+        if (util.RestClient.getInstance().isBookingServiceAvailable()) {
+            try {
+                java.util.Map<String, Object> bookingRequest = new java.util.HashMap<>();
+                bookingRequest.put("flightId", flight.getId());
+                bookingRequest.put("passengerId", Account.getCurrentUser().getId()); // Using Account ID as per BookingEntity logic
+                bookingRequest.put("seatSelection", String.valueOf(selectedSeat.getPrimaryKey()));
+                
+                util.RestClient.getInstance().postBooking("/api/booking", bookingRequest, Object.class);
+                System.out.println("Booking successfully created/updated via Spring Boot Service");
+                serviceSuccess = true;
+            } catch (Exception e) {
+                System.err.println("Spring Boot Booking Service failed: " + e.getMessage());
+                e.printStackTrace(); // Print full stack trace for debugging
+            }
+        } else {
+             System.out.println("Booking Service is NOT available via RestClient check.");
         }
-        else {
-            reservationDao.create(reservation);
+
+        if (!serviceSuccess) {
+            if (Account.getCurrentUser().hasReservation(flight)) {
+                reservationDao.update(Account.getCurrentUser().getReservation(flight).getId(), reservation);
+            }
+            else {
+                reservationDao.create(reservation);
+            }
         }
 
         try {

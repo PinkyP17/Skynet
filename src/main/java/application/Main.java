@@ -24,7 +24,7 @@ public class Main extends Application {
 			Palette.setDefaultPalette(Palette.LightPalette);
 			Palette.getDefaultPalette().usePalette(scene);
 
-			primaryStage.initStyle(StageStyle.UNIFIED);
+			// primaryStage.initStyle(StageStyle.UNIFIED);
 			primaryStage.setResizable(false);
 			primaryStage.setScene(scene);
 			primaryStage.setTitle("Skynet");

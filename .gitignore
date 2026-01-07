@@ -272,3 +272,7 @@ $RECYCLE.BIN/
 .apt_generated
 .settings
 .sts4-cache
+
+# nijam
+assignment_doc/
+# /felix-framework
