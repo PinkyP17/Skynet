@@ -1,0 +1,129 @@
+/* ============================================ */
+/* ENHANCEMENTS STYLING                         */
+/* ============================================ */
+
+/* Enhancement Card Container */
+.enhancement-card {
+    -fx-background-color: #f5f5f5;
+    -fx-background-radius: 10px;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 5, 0, 0, 2);
+}
+
+/* Enhancement Title */
+.enhancement-title {
+    -fx-text-fill: #333333;
+    -fx-font-weight: bold;
+}
+
+/* Hint Labels */
+.hint-label {
+    -fx-text-fill: #666666;
+    -fx-font-style: italic;
+}
+
+/* ============================================ */
+/* ENHANCEMENT 1: Profile Completeness Meter   */
+/* ============================================ */
+
+.completeness-progress {
+    -fx-pref-height: 20px;
+}
+
+.completeness-progress .bar {
+    -fx-background-radius: 10px;
+    -fx-padding: 0.5em;
+}
+
+.completeness-progress .track {
+    -fx-background-color: #e0e0e0;
+    -fx-background-radius: 10px;
+}
+
+.completeness-label {
+    -fx-font-weight: bold;
+    -fx-text-fill: #2196f3;
+}
+
+/* ============================================ */
+/* ENHANCEMENT 2: Loyalty Tier Visualizer      */
+/* ============================================ */
+
+.tier-label {
+    -fx-font-weight: bold;
+}
+
+.points-label {
+    -fx-text-fill: #666666;
+}
+
+.tier-progress {
+    -fx-pref-height: 15px;
+}
+
+.tier-progress .bar {
+    -fx-background-radius: 8px;
+}
+
+.tier-progress .track {
+    -fx-background-color: #e0e0e0;
+    -fx-background-radius: 8px;
+}
+
+/* ============================================ */
+/* ENHANCEMENT 3: Document Expiry Alerts       */
+/* ============================================ */
+
+.alert-list {
+    -fx-background-color: white;
+    -fx-border-color: #e0e0e0;
+    -fx-border-radius: 5px;
+    -fx-background-radius: 5px;
+}
+
+.alert-list .list-cell {
+    -fx-padding: 8px;
+    -fx-font-size: 12px;
+}
+
+.alert-list .list-cell:filled:hover {
+    -fx-background-color: #f0f0f0;
+}
+
+.alert-badge {
+    -fx-background-color: #f44336;
+    -fx-text-fill: white;
+    -fx-padding: 2 8 2 8;
+    -fx-background-radius: 10px;
+    -fx-font-weight: bold;
+}
+
+/* ============================================ */
+/* ICON COLORS                                  */
+/* ============================================ */
+
+.icon-success {
+    -fx-icon-color: #4caf50;
+}
+
+.icon-warning {
+    -fx-icon-color: #ff9800;
+}
+
+.icon-danger {
+    -fx-icon-color: #f44336;
+}
+
+/* ============================================ */
+/* RESPONSIVE ADJUSTMENTS                       */
+/* ============================================ */
+
+@media (max-width: 800px) {
+    .enhancement-card {
+        -fx-padding: 10px;
+    }
+    
+    .completeness-progress,
+    .tier-progress {
+        -fx-pref-width: 300px;
+    }
+}
