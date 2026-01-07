@@ -1,0 +1,319 @@
+package controller;
+
+import data.AccountDao;
+import data.AirportDao;
+import data.PassengerDao;
+import dto.PassengerDTO;
+import util.RestClient;
+import javafx.application.Platform;
+import javafx.event.ActionEvent;
+import javafx.fxml.FXML;
+import javafx.fxml.Initializable;
+import javafx.scene.control.*;
+import javafx.scene.image.Image;
+import javafx.scene.paint.Color;
+import javafx.scene.paint.ImagePattern;
+import javafx.scene.shape.Circle;
+import javafx.stage.FileChooser;
+import javafx.stage.Stage;
+import javafx.stage.StageStyle;
+import models.Account;
+import models.Passenger;
+import org.controlsfx.control.SearchableComboBox;
+
+import java.io.File;
+import java.net.URL;
+import java.time.LocalDate;
+import java.util.ResourceBundle;
+
+/**
+ * PersonalInformationController - HYBRID VERSION
+ * 
+ * Now calls Spring Boot REST API instead of direct database access
+ * 
+ * Changes:
+ * 1. Added RestClient for API calls
+ * 2. updateData() now calls PUT /passengers/{id}
+ * 3. setData() can optionally call GET /passengers/{id}
+ */
+public class PersonalInformationControlller implements Initializable {
+
+    @FXML
+    private SearchableComboBox<String> countryBox;
+
+    @FXML
+    private ChoiceBox<String> genderBox;
+
+    @FXML
+    private DatePicker txtbirthday;
+
+    @FXML
+    private TextField txtemail;
+
+    @FXML
+    private TextField txtfirstname;
+
+    @FXML
+    private TextField txtlastname;
+
+    @FXML
+    private Circle profilePictureFrame;
+    private Image profilePicture;
+
+    private final Alert alert = new Alert(Alert.AlertType.INFORMATION);
+    
+    // ============================================
+    // NEW: REST Client for Spring Boot API calls
+    // ============================================
+    private RestClient restClient;
+    private boolean useSpringBoot = true; // Toggle: true = Spring Boot, false = Direct DAO
+
+    @Override
+    public void initialize(URL location, ResourceBundle resources) {
+        genderBox.getItems().addAll("Male","Female");
+        countryBox.setItems(AirportDao.getCountryList());
+        
+        // NEW: Initialize REST client
+        restClient = new RestClient();
+        
+        // NEW: Check if Spring Boot is available
+        if (useSpringBoot && !restClient.isServiceAvailable()) {
+            System.err.println("[PersonalInfo] Spring Boot service not available. Using direct DAO access.");
+            useSpringBoot = false; // Fallback to old method
+        }
+        
+        this.setData();
+
+        txtbirthday.showingProperty().addListener((observableValue, wasFocused, isNowFocus) -> {
+            if (isNowFocus && txtbirthday.getValue() == null) {
+                txtbirthday.setValue(LocalDate.now().minusYears(20));
+                Platform.runLater(()->{
+                    txtbirthday.getEditor().clear();
+                });
+            }
+        });
+
+        alert.setHeaderText("Warning");
+        DialogPane dialogPane = alert.getDialogPane();
+        dialogPane.getStylesheets().add(getClass().getResource("/style/Application.css").toExternalForm());
+
+        Stage alertWindow = (Stage) dialogPane.getScene().getWindow();
+        alertWindow.initStyle(StageStyle.TRANSPARENT);
+        dialogPane.getScene().setFill(Color.TRANSPARENT);
+        Platform.runLater(() -> alertWindow.initOwner(txtfirstname.getScene().getWindow()));
+    }
+  
+    @FXML
+    void setData() {
+        Account user = Account.getCurrentUser();
+        profilePicture = user.getPassenger().getProfilePictue();
+        profilePictureFrame.setFill(new ImagePattern(profilePicture));
+        txtfirstname.setText(user.getPassenger().getFirstname());
+        txtlastname.setText(user.getPassenger().getLastname());
+        txtbirthday.setValue(user.getPassenger().getBirthDate());
+        txtemail.setText(user.getEmailAddress());
+        if (user.getPassenger().getGender() != null) {
+            genderBox.setValue(user.getPassenger().getGender().equals("M") ? "Male" : "Female");
+        }
+        countryBox.setValue(user.getPassenger().getCountry());
+        
+        // NEW: Optional - Load from Spring Boot API (uncomment to use)
+        // loadDataFromSpringBoot();
+    }
+    
+    /**
+     * NEW METHOD: Load passenger data from Spring Boot API
+     * Optional alternative to loading from Account.getCurrentUser()
+     */
+    private void loadDataFromSpringBoot() {
+        if (!useSpringBoot) return;
+        
+        try {
+            Long passengerId = (long) Account.getCurrentUser().getPassenger().getId();
+            System.out.println("[PersonalInfo] Loading passenger " + passengerId + " from Spring Boot...");
+            
+            PassengerDTO passenger = restClient.get("/passengers/" + passengerId, PassengerDTO.class);
+            
+            if (passenger != null) {
+                System.out.println("[PersonalInfo] Loaded: " + passenger);
+                // Update UI with data from Spring Boot
+                txtfirstname.setText(passenger.getFirstName());
+                txtlastname.setText(passenger.getLastName());
+                countryBox.setValue(passenger.getCountry());
+                
+                // Profile completeness from Spring Boot
+                if (passenger.getProfileCompleteness() != null) {
+                    System.out.println("[PersonalInfo] Profile Completeness: " + passenger.getProfileCompleteness() + "%");
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[PersonalInfo] Failed to load from Spring Boot: " + e.getMessage());
+            // Fallback already loaded from Account.getCurrentUser()
+        }
+    }
+   
+    @FXML 
+    void updateData(ActionEvent event) {
+        // Validation (unchanged)
+        if (txtfirstname.getText().isBlank() || txtlastname.getText().isBlank() || txtemail.getText().isBlank() ||
+            txtbirthday.getValue() == null || countryBox.getSelectionModel().isEmpty() || 
+            countryBox.getSelectionModel().getSelectedItem() == null || genderBox.getSelectionModel().isEmpty()) {
+            alert.setContentText("All fields are required.");
+            txtfirstname.getScene().lookup("#overlay-layer").setDisable(false);
+            alert.showAndWait();
+            txtfirstname.getScene().lookup("#overlay-layer").setDisable(true);
+            return;
+        }
+
+        if (!txtemail.getText().matches("^[\\w-.]+@([\\w-]+\\.)+[\\w-]{2,4}$")) {
+            alert.setContentText("Please enter a valid email address.");
+            txtfirstname.getScene().lookup("#overlay-layer").setDisable(false);
+            alert.showAndWait();
+            txtfirstname.getScene().lookup("#overlay-layer").setDisable(true);
+            return;
+        }
+
+        // ============================================
+        // MODIFIED: Choose Spring Boot API or Direct DAO
+        // ============================================
+        if (useSpringBoot) {
+            updateDataViaSpringBoot(event);
+        } else {
+            updateDataViaDirect(event);
+        }
+    }
+    
+    /**
+     * NEW METHOD: Update passenger via Spring Boot REST API
+     */
+    private void updateDataViaSpringBoot(ActionEvent event) {
+        try {
+            Long passengerId = (long) Account.getCurrentUser().getPassenger().getId();
+            System.out.println("[PersonalInfo] Updating passenger " + passengerId + " via Spring Boot...");
+            
+            // Create DTO with updated values
+            PassengerDTO updatedData = new PassengerDTO();
+            updatedData.setId(passengerId); // Ensure ID is set for creation if needed
+            updatedData.setFirstName(txtfirstname.getText().trim());
+            updatedData.setLastName(txtlastname.getText().trim());
+            updatedData.setCountry(countryBox.getValue());
+            // Note: Spring Boot doesn't handle birthDate, gender, email yet
+            
+            PassengerDTO updated = null;
+            
+            try {
+                // Try to UPDATE (PUT) first
+                updated = restClient.put(
+                    "/passengers/" + passengerId,
+                    updatedData,
+                    PassengerDTO.class
+                );
+            } catch (org.springframework.web.client.HttpClientErrorException.NotFound e) {
+                // If 404, it means passenger doesn't exist remotely yet. Try to CREATE (POST).
+                System.out.println("[PersonalInfo] Passenger not found remotely (404). Creating new record...");
+                updated = restClient.post(
+                    "/passengers",
+                    updatedData,
+                    PassengerDTO.class
+                );
+            } catch (Exception e) {
+                // If the error message contains "404", try creating (in case exception type wrapping hides it)
+                if (e.getMessage() != null && e.getMessage().contains("404")) {
+                     System.out.println("[PersonalInfo] Passenger not found remotely (404 via message). Creating new record...");
+                     updated = restClient.post(
+                        "/passengers",
+                        updatedData,
+                        PassengerDTO.class
+                    );
+                } else {
+                    throw e;
+                }
+            }
+            
+            System.out.println("[PersonalInfo] Update/Create successful via Spring Boot!");
+            if (updated != null && updated.getProfileCompleteness() != null) {
+                 System.out.println("[PersonalInfo] New profile completeness: " + updated.getProfileCompleteness() + "%");
+            }
+            
+            // Also update account email via direct DAO
+            Account account = new Account();
+            AccountDao accountDao = new AccountDao();
+            account.setEmailAddress(txtemail.getText().trim());
+            accountDao.update(Account.getCurrentUser().getId(), account);
+            
+            // Also update fields not in Spring Boot (birthDate, gender) via direct DAO
+            Passenger passenger = new Passenger();
+            PassengerDao passengerDao = new PassengerDao();
+            passenger.setProfilePictue(profilePicture);
+            passenger.setBirthDate(txtbirthday.getValue());
+            passenger.setGender(genderBox.getValue().substring(0,1));
+            passengerDao.update(passengerId.intValue(), passenger);
+            
+            // Success message with completeness
+            String completenessMsg = (updated != null && updated.getProfileCompleteness() != null) 
+                                     ? "\nProfile Completeness: " + updated.getProfileCompleteness() + "%" 
+                                     : "";
+            alert.setContentText("Profile updated successfully!" + completenessMsg);
+            txtfirstname.getScene().lookup("#overlay-layer").setDisable(false);
+            alert.showAndWait();
+            txtfirstname.getScene().lookup("#overlay-layer").setDisable(true);
+            
+        } catch (Exception e) {
+            System.err.println("[PersonalInfo] Spring Boot update failed: " + e.getMessage());
+            e.printStackTrace();
+            
+            alert.setContentText("Failed to update via Spring Boot: " + e.getMessage() + "\nFalling back to direct update...");
+            txtfirstname.getScene().lookup("#overlay-layer").setDisable(false);
+            alert.showAndWait();
+            txtfirstname.getScene().lookup("#overlay-layer").setDisable(true);
+            
+            // Fallback to direct DAO
+            updateDataViaDirect(event);
+        }
+    }
+    
+    /**
+     * ORIGINAL METHOD: Update passenger via direct DAO (fallback)
+     */
+    private void updateDataViaDirect(ActionEvent event) {
+        System.out.println("[PersonalInfo] Updating passenger via direct DAO...");
+        
+        Passenger passenger = new Passenger();
+        PassengerDao passengerDao = new PassengerDao();
+        Account account = new Account();
+        AccountDao accountDao = new AccountDao();
+
+        passenger.setProfilePictue(profilePicture);
+        passenger.setFirstname(txtfirstname.getText().trim());
+        passenger.setLastname(txtlastname.getText().trim());
+        passenger.setBirthDate(txtbirthday.getValue());
+        passenger.setGender(genderBox.getValue().substring(0,1));
+        passenger.setCountry(countryBox.getValue());
+        account.setEmailAddress(txtemail.getText().trim());
+
+        passengerDao.update(Account.getCurrentUser().getPassenger().getId(), passenger);
+        accountDao.update(Account.getCurrentUser().getId(), account);
+        
+        System.out.println("[PersonalInfo] Update successful via direct DAO!");
+    }
+
+    @FXML
+    void changeImage(ActionEvent event) {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("IMAGE","*.png","*.jpg","*.jpeg")
+        );
+
+        File picturesDir = new File(System.getProperty("user.home") + "\\pictures");
+        if (picturesDir.exists()) {
+            fileChooser.setInitialDirectory(picturesDir);
+        }
+
+        File selectedFile = fileChooser.showOpenDialog(profilePictureFrame.getScene().getWindow());
+
+        if (selectedFile != null) {
+            profilePicture = new Image(selectedFile.getAbsolutePath());
+            profilePictureFrame.setFill(new ImagePattern(profilePicture));
+        }
+    }
+}
