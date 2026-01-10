@@ -20,6 +20,7 @@ public class Flight {
     private Airport arrAirport;
     private int airline;
     private SimpleBooleanProperty favorite;
+    private String status;
 
     public Flight() {
         this.firstPrice = -1;
@@ -28,6 +29,7 @@ public class Flight {
         this.luggagePrice = -1;
         this.weightPrice = -1;
         this.favorite = new SimpleBooleanProperty(false);
+        this.status = "On Time";
     }
 
     public boolean isFavorite() {
@@ -143,5 +145,39 @@ public class Flight {
     }
     public void setWeightPrice(double weight_price) {
         this.weightPrice = weight_price;
+    }
+    
+    public String getStatus() {
+        return status == null ? "On Time" : status;
+    }
+    
+    public void setStatus(String status) {
+        this.status = status == null ? "On Time" : status;
+    }
+    
+    public String getStatusColor() {
+        if (status == null) return "#4CAF50"; // Green for On Time
+        switch (status.toLowerCase()) {
+            case "delayed":
+                return "#F44336"; // Red
+            case "on time":
+                return "#4CAF50"; // Green
+            case "cancelled":
+                return "#9E9E9E"; // Grey
+            default:
+                return "#4CAF50"; // Default green
+        }
+    }
+    
+    public Double getMinPrice() {
+        double min = economyPrice;
+        if (businessPrice > 0 && businessPrice < min) min = businessPrice;
+        if (firstPrice > 0 && firstPrice < min) min = firstPrice;
+        return min;
+    }
+    
+    public Long getDurationMinutes() {
+        if (depDatetime == null || arrDatetime == null) return null;
+        return java.time.Duration.between(depDatetime, arrDatetime).toMinutes();
     }
 }

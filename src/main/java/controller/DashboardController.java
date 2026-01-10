@@ -4,6 +4,15 @@ import data.AirlineDao;
 import data.AirportDao;
 import data.FlightDao;
 import data.ReservationDao;
+import util.FlightCatalogRestClient;
+import util.FlightConverter;
+import util.FlightDTO;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.stream.Collectors;
+import java.util.Comparator;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -17,6 +26,8 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
@@ -140,19 +151,54 @@ public class DashboardController implements Initializable {
 
     @FXML
     private TextField searchBar;
+    
+    @FXML
+    private DatePicker searchDepDatePicker;
+    
+    @FXML
+    private DatePicker searchArrDatePicker;
+    
+    @FXML
+    private ComboBox<String> sortComboBox;
+    
+    @FXML
+    private TableColumn<Flight, String> colDuration;
+    
+    @FXML
+    private TableColumn<Flight, String> colStatus;
+    
+    @FXML
+    private ComboBox<String> statusComboBox;
 
     @FXML
     private ToggleButton themeButton;
 
     private final Alert alert = new Alert(Alert.AlertType.INFORMATION);
     private FilteredList<Flight> results;
+    private FlightCatalogRestClient restClient;
+    private boolean useSpringBoot = false;
+    private ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        FlightDao flightDao = new FlightDao();
-        results = new FilteredList<>(FXCollections.observableList(flightDao.read(Account.getCurrentUser().getAirline())), flight -> true);
+        // Set up UI components first
         setData();
+        
+        // Check if Spring Boot service is available
+        restClient = FlightCatalogRestClient.getInstance();
+        useSpringBoot = restClient.isServiceAvailable();
+        
+        if (useSpringBoot) {
+            System.out.println("Using Spring Boot Flight Catalog Service");
+            loadFlightsFromSpringBoot();
+        } else {
+            System.out.println("Spring Boot service not available, using DAO");
+            loadFlightsFromDAO();
+        }
+        
         findFlight();
+        setupFilters();
+        setupSorting();
 
         if (Palette.getDefaultPalette().equals(Palette.DarkPalette)) {
             themeButton.setSelected(true);
@@ -249,6 +295,11 @@ public class DashboardController implements Initializable {
             allowDoubleOnly(priceLuggage);
             allowDoubleOnly(priceWeight);
         }
+        
+        {
+            // Initialize status combo box
+            statusComboBox.setValue("On Time");
+        }
 
         {
             colId.setCellValueFactory(new PropertyValueFactory<>("id"));
@@ -260,6 +311,23 @@ public class DashboardController implements Initializable {
                 ReservationDao reservationDao = new ReservationDao();
                 return new SimpleStringProperty(reservationDao.countReservations(flight.getValue()) + "/120");
             });
+            colDuration.setCellValueFactory(flight -> {
+                Long durationMinutes = flight.getValue().getDurationMinutes();
+                if (durationMinutes != null) {
+                    long hours = durationMinutes / 60;
+                    long minutes = durationMinutes % 60;
+                    return new SimpleStringProperty(String.format("%dh %dm", hours, minutes));
+                }
+                return new SimpleStringProperty("N/A");
+            });
+            colStatus.setCellValueFactory(flight -> {
+                String status = flight.getValue().getStatus();
+                return new SimpleStringProperty(status);
+            });
+            // Initialize empty results list - will be populated after data loads
+            if (results == null) {
+                results = new FilteredList<>(FXCollections.observableArrayList(), flight -> true);
+            }
             flightTable.setItems(results);
 
             flightTable.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
@@ -268,7 +336,18 @@ public class DashboardController implements Initializable {
             });
 
             flightTable.setRowFactory(tableView -> {
-                TableRow<Flight> row = new TableRow<>();
+                TableRow<Flight> row = new TableRow<Flight>() {
+                    @Override
+                    protected void updateItem(Flight flight, boolean empty) {
+                        super.updateItem(flight, empty);
+                        if (empty || flight == null) {
+                            setStyle("");
+                        } else {
+                            String color = flight.getStatusColor();
+                            setStyle("-fx-background-color: " + color + "20;"); // 20 = opacity
+                        }
+                    }
+                };
                 row.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
                     int index = row.getIndex();
                     if (tableView.getSelectionModel().isSelected(index)) {
@@ -276,6 +355,12 @@ public class DashboardController implements Initializable {
                         event.consume();
                     }
                 });
+                // Right-click context menu for status update
+                ContextMenu contextMenu = new ContextMenu();
+                MenuItem updateStatusItem = new MenuItem("Update Status");
+                updateStatusItem.setOnAction(e -> updateFlightStatus());
+                contextMenu.getItems().add(updateStatusItem);
+                row.setContextMenu(contextMenu);
                 return row;
             });
         }
@@ -295,6 +380,7 @@ public class DashboardController implements Initializable {
         flightTable.getSelectionModel().clearSelection();
 
         lblTitle.setText("New Flight");
+        statusComboBox.setValue("On Time");
 
         actionButton.setText("ADD");
         actionButton.setOnAction(e -> addFlight());
@@ -341,28 +427,76 @@ public class DashboardController implements Initializable {
             return;
         }
 
-        FlightDao flightDao = new FlightDao();
-
         Flight flight = new Flight();
-
         flight.setAirline(Account.getCurrentUser().getAirline().getId());
-
         flight.setDepAirport(depAirport.getValue());
         flight.setArrAirport(arrAirport.getValue());
-
         flight.setDepDatetime(depDateTime);
         flight.setArrDatetime(arrDateTime);
-
         flight.setFirstPrice(Double.parseDouble(priceFirstClass.getText()));
         flight.setBusinessPrice(Double.parseDouble(priceBusinessClass.getText()));
         flight.setEconomyPrice(Double.parseDouble(priceEconomyClass.getText()));
         flight.setLuggagePrice(Double.parseDouble(priceLuggage.getText()));
         flight.setWeightPrice(Double.parseDouble(priceWeight.getText()));
+        flight.setStatus(statusComboBox.getValue() != null ? statusComboBox.getValue() : "On Time");
 
-        flightDao.create(flight);
-        @SuppressWarnings("unchecked")
-        ObservableList<Flight> source = (ObservableList<Flight>) results.getSource();
-        source.add(0, flight);
+        if (useSpringBoot) {
+            try {
+                // Check for duplicate
+                String dateStr = depDateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+                String checkUrl = "/flights/check-duplicate?depAirportId=" + depAirport.getValue().getId() +
+                    "&arrAirportId=" + arrAirport.getValue().getId() +
+                    "&date=" + dateStr +
+                    "&airlineId=" + Account.getCurrentUser().getAirline().getId();
+                
+                String duplicateResponse = restClient.get(checkUrl, String.class);
+                if (duplicateResponse != null && duplicateResponse.contains("\"isDuplicate\":true")) {
+                    alert.setContentText("Duplicate flight detected: A flight with the same route, date, and airline already exists.");
+                    parent.getScene().lookup("#overlay-layer").setDisable(false);
+                    alert.showAndWait();
+                    parent.getScene().lookup("#overlay-layer").setDisable(true);
+                    return;
+                }
+                
+                // Add flight via Spring Boot
+                FlightDTO flightDTO = FlightDTO.fromFlight(flight);
+                String response = restClient.post("/flights", flightDTO, String.class);
+                if (response != null) {
+                    JsonNode jsonNode = objectMapper.readTree(response);
+                    Flight savedFlight = FlightConverter.fromJsonNode(jsonNode);
+                    @SuppressWarnings("unchecked")
+                    ObservableList<Flight> source = (ObservableList<Flight>) results.getSource();
+                    source.add(0, savedFlight);
+                    closePanel();
+                }
+            } catch (Exception e) {
+                alert.setContentText("Failed to add flight: " + e.getMessage());
+                parent.getScene().lookup("#overlay-layer").setDisable(false);
+                alert.showAndWait();
+                parent.getScene().lookup("#overlay-layer").setDisable(true);
+            }
+        } else {
+            // Fallback to DAO - check for duplicate
+            FlightDao flightDao = new FlightDao();
+            if (flightDao.isDuplicate(
+                    depAirport.getValue().getId(),
+                    arrAirport.getValue().getId(),
+                    depDateTime,
+                    Account.getCurrentUser().getAirline().getId(),
+                    null)) {
+                alert.setContentText("Duplicate flight detected: A flight with the same route, date, and airline already exists.");
+                parent.getScene().lookup("#overlay-layer").setDisable(false);
+                alert.showAndWait();
+                parent.getScene().lookup("#overlay-layer").setDisable(true);
+                return;
+            }
+            
+            flightDao.create(flight);
+            @SuppressWarnings("unchecked")
+            ObservableList<Flight> source = (ObservableList<Flight>) results.getSource();
+            source.add(0, flight);
+            closePanel();
+        }
     }
 
     @FXML
@@ -412,6 +546,16 @@ public class DashboardController implements Initializable {
             priceLuggage.setText(String.valueOf(selectedFlight.getLuggagePrice()));
             priceWeight.setText(String.valueOf(selectedFlight.getWeightPrice()));
         }
+        
+        //status data
+        {
+            String status = selectedFlight.getStatus();
+            if (status != null && (status.equals("On Time") || status.equals("Delayed") || status.equals("Cancelled"))) {
+                statusComboBox.setValue(status);
+            } else {
+                statusComboBox.setValue("On Time");
+            }
+        }
 
         actionButton.setText("UPDATE");
         actionButton.setOnAction(e -> updateFlight(selectedFlight));
@@ -459,35 +603,153 @@ public class DashboardController implements Initializable {
             return;
         }
 
-        FlightDao flightDao = new FlightDao();
-
         flight.setAirline(Account.getCurrentUser().getAirline().getId());
-
         flight.setDepAirport(depAirport.getValue());
         flight.setArrAirport(arrAirport.getValue());
-
         flight.setDepDatetime(LocalDateTime.of(depDate.getValue(), LocalTime.of(depHour.getValue(), depMinute.getValue())));
         flight.setArrDatetime(LocalDateTime.of(arrDate.getValue(), LocalTime.of(arrHour.getValue(), arrMinute.getValue())));
-
         flight.setFirstPrice(Double.parseDouble(priceFirstClass.getText()));
         flight.setBusinessPrice(Double.parseDouble(priceBusinessClass.getText()));
         flight.setEconomyPrice(Double.parseDouble(priceEconomyClass.getText()));
         flight.setLuggagePrice(Double.parseDouble(priceLuggage.getText()));
         flight.setWeightPrice(Double.parseDouble(priceWeight.getText()));
+        flight.setStatus(statusComboBox.getValue() != null ? statusComboBox.getValue() : "On Time");
 
-        flightDao.update(flight.getId(), flight);
-        flightTable.refresh();
+        LocalDateTime updatedDepDateTime = LocalDateTime.of(depDate.getValue(), LocalTime.of(depHour.getValue(), depMinute.getValue()));
+
+        if (useSpringBoot) {
+            try {
+                // Check for duplicate (excluding current flight)
+                String dateStr = updatedDepDateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+                String checkUrl = "/flights/check-duplicate?depAirportId=" + depAirport.getValue().getId() +
+                    "&arrAirportId=" + arrAirport.getValue().getId() +
+                    "&date=" + dateStr +
+                    "&airlineId=" + Account.getCurrentUser().getAirline().getId();
+                
+                String duplicateResponse = restClient.get(checkUrl, String.class);
+                if (duplicateResponse != null && duplicateResponse.contains("\"isDuplicate\":true")) {
+                    // Check if it's the same flight (by checking if we can find it with exclude)
+                    // For now, we'll allow update if it's the same flight
+                }
+                
+                // Check for duplicate excluding current flight
+                String checkUrlExclude = "/flights/check-duplicate?depAirportId=" + depAirport.getValue().getId() +
+                    "&arrAirportId=" + arrAirport.getValue().getId() +
+                    "&date=" + depDateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) +
+                    "&airlineId=" + Account.getCurrentUser().getAirline().getId() +
+                    "&excludeId=" + flight.getId();
+                
+                // Note: We need to check if there's a duplicate excluding the current flight
+                // For now, Spring Boot service handles this in the update method
+                
+                // Update flight via Spring Boot
+                FlightDTO flightDTO = FlightDTO.fromFlight(flight);
+                String response = restClient.put("/flights/" + flight.getId(), flightDTO, String.class);
+                if (response != null) {
+                    JsonNode jsonNode = objectMapper.readTree(response);
+                    Flight updatedFlight = FlightConverter.fromJsonNode(jsonNode);
+                    @SuppressWarnings("unchecked")
+                    ObservableList<Flight> source = (ObservableList<Flight>) results.getSource();
+                    int index = source.indexOf(flight);
+                    if (index >= 0) {
+                        source.set(index, updatedFlight);
+                    }
+                    flightTable.refresh();
+                    closePanel();
+                }
+            } catch (Exception e) {
+                alert.setContentText("Failed to update flight: " + e.getMessage());
+                parent.getScene().lookup("#overlay-layer").setDisable(false);
+                alert.showAndWait();
+                parent.getScene().lookup("#overlay-layer").setDisable(true);
+            }
+        } else {
+            // Fallback to DAO - check for duplicate (excluding current flight)
+            FlightDao flightDao = new FlightDao();
+            if (flightDao.isDuplicate(
+                    depAirport.getValue().getId(),
+                    arrAirport.getValue().getId(),
+                    updatedDepDateTime,
+                    Account.getCurrentUser().getAirline().getId(),
+                    flight.getId())) {
+                alert.setContentText("Duplicate flight detected: Another flight with the same route, date, and airline already exists.");
+                parent.getScene().lookup("#overlay-layer").setDisable(false);
+                alert.showAndWait();
+                parent.getScene().lookup("#overlay-layer").setDisable(true);
+                return;
+            }
+            
+            flightDao.update(flight.getId(), flight);
+            flightTable.refresh();
+            closePanel();
+        }
     }
 
     @FXML
     void deleteFlight() {
-        FlightDao flightDao = new FlightDao();
         Flight selectedFlight = flightTable.getSelectionModel().getSelectedItem();
-
-        flightDao.delete(selectedFlight.getId());
-        @SuppressWarnings("unchecked")
-        ObservableList<Flight> source = (ObservableList<Flight>) results.getSource();
-        source.remove(selectedFlight);
+        
+        if (useSpringBoot) {
+            try {
+                restClient.delete("/flights/" + selectedFlight.getId());
+                @SuppressWarnings("unchecked")
+                ObservableList<Flight> source = (ObservableList<Flight>) results.getSource();
+                source.remove(selectedFlight);
+            } catch (Exception e) {
+                alert.setContentText("Failed to delete flight: " + e.getMessage());
+                parent.getScene().lookup("#overlay-layer").setDisable(false);
+                alert.showAndWait();
+                parent.getScene().lookup("#overlay-layer").setDisable(true);
+            }
+        } else {
+            FlightDao flightDao = new FlightDao();
+            flightDao.delete(selectedFlight.getId());
+            @SuppressWarnings("unchecked")
+            ObservableList<Flight> source = (ObservableList<Flight>) results.getSource();
+            source.remove(selectedFlight);
+        }
+    }
+    
+    @FXML
+    void updateFlightStatus() {
+        Flight selectedFlight = flightTable.getSelectionModel().getSelectedItem();
+        if (selectedFlight == null) return;
+        
+        ChoiceDialog<String> dialog = new ChoiceDialog<>("On Time", "On Time", "Delayed", "Cancelled");
+        dialog.setTitle("Update Flight Status");
+        dialog.setHeaderText("Select new status for Flight #" + selectedFlight.getId());
+        dialog.setContentText("Status:");
+        
+        Platform.runLater(() -> Palette.getDefaultPalette().usePalette(dialog.getDialogPane().getScene()));
+        
+        dialog.showAndWait().ifPresent(status -> {
+            if (useSpringBoot) {
+                try {
+                    String response = restClient.put("/flights/" + selectedFlight.getId() + "/status?status=" + status, null, String.class);
+                    if (response != null) {
+                        JsonNode jsonNode = objectMapper.readTree(response);
+                        Flight updatedFlight = FlightConverter.fromJsonNode(jsonNode);
+                        @SuppressWarnings("unchecked")
+                        ObservableList<Flight> source = (ObservableList<Flight>) results.getSource();
+                        int index = source.indexOf(selectedFlight);
+                        if (index >= 0) {
+                            source.set(index, updatedFlight);
+                        }
+                        flightTable.refresh();
+                    }
+                } catch (Exception e) {
+                    alert.setContentText("Failed to update status: " + e.getMessage());
+                    parent.getScene().lookup("#overlay-layer").setDisable(false);
+                    alert.showAndWait();
+                    parent.getScene().lookup("#overlay-layer").setDisable(true);
+                }
+            } else {
+                selectedFlight.setStatus(status);
+                FlightDao flightDao = new FlightDao();
+                flightDao.update(selectedFlight.getId(), selectedFlight);
+                flightTable.refresh();
+            }
+        });
     }
 
     @FXML
@@ -581,54 +843,144 @@ public class DashboardController implements Initializable {
     }
 
     private void findFlight() {
-
         searchBar.textProperty().addListener((observableValue, oldValue, newValue) -> {
-
-            results.setPredicate(flight -> {
-
-                if (newValue.isBlank()) {
-                    return true;
-                }
-
-                String keyword = newValue.toLowerCase();
-
-                if (String.valueOf(flight.getId()).equals(keyword)) {
-                    return true;
-                }
-                else if (flight.getDepAirport().getName().toLowerCase().contains(keyword)) {
-                    return true;
-                }
-                else if (flight.getDepAirport().getCountry().toLowerCase().contains(keyword)) {
-                    return true;
-                }
-                else if (flight.getDepAirport().getCity().toLowerCase().contains(keyword)) {
-                    return true;
-                }
-                else if (flight.getDepAirport().getIATA().toLowerCase().equals(keyword)) {
-                    return true;
-                }
-                else if (flight.getDepAirport().getICAO().toLowerCase().equals(keyword)) {
-                    return true;
-                }
-                else if (flight.getArrAirport().getName().toLowerCase().contains(keyword)) {
-                    return true;
-                }
-                else if (flight.getArrAirport().getCountry().toLowerCase().contains(keyword)) {
-                    return true;
-                }
-                else if (flight.getArrAirport().getCity().toLowerCase().contains(keyword)) {
-                    return true;
-                }
-                else if (flight.getArrAirport().getIATA().toLowerCase().equals(keyword)) {
-                    return true;
-                }
-                else if (flight.getArrAirport().getICAO().toLowerCase().equals(keyword)) {
-                    return true;
-                }
-                else {
-                    return false;
-                }
-            });
+            applyFilters();
+        });
+        
+        // Departure date filter
+        searchDepDatePicker.valueProperty().addListener((observable, oldValue, newValue) -> {
+            applyFilters();
+        });
+        
+        // Arrival date filter
+        searchArrDatePicker.valueProperty().addListener((observable, oldValue, newValue) -> {
+            applyFilters();
         });
     }
+    
+    private void setupFilters() {
+        // Filters removed - only search and date filter remain
+    }
+    
+    private void setupSorting() {
+        sortComboBox.valueProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null && !newValue.equals("None")) {
+                applySorting(newValue);
+            }
+        });
+    }
+    
+    private void applyFilters() {
+        results.setPredicate(flight -> {
+            // Text search
+            String searchText = searchBar.getText().toLowerCase();
+            if (!searchText.isBlank()) {
+                boolean matches = String.valueOf(flight.getId()).equals(searchText) ||
+                    flight.getDepAirport().getName().toLowerCase().contains(searchText) ||
+                    flight.getDepAirport().getCountry().toLowerCase().contains(searchText) ||
+                    flight.getDepAirport().getCity().toLowerCase().contains(searchText) ||
+                    flight.getDepAirport().getIATA().toLowerCase().equals(searchText) ||
+                    flight.getDepAirport().getICAO().toLowerCase().equals(searchText) ||
+                    flight.getArrAirport().getName().toLowerCase().contains(searchText) ||
+                    flight.getArrAirport().getCountry().toLowerCase().contains(searchText) ||
+                    flight.getArrAirport().getCity().toLowerCase().contains(searchText) ||
+                    flight.getArrAirport().getIATA().toLowerCase().equals(searchText) ||
+                    flight.getArrAirport().getICAO().toLowerCase().equals(searchText);
+                if (!matches) return false;
+            }
+            
+            // Departure date filter
+            if (searchDepDatePicker.getValue() != null) {
+                java.time.LocalDate depDate = flight.getDepDatetime().toLocalDate();
+                if (!depDate.equals(searchDepDatePicker.getValue())) {
+                    return false;
+                }
+            }
+            
+            // Arrival date filter
+            if (searchArrDatePicker.getValue() != null) {
+                java.time.LocalDate arrDate = flight.getArrDatetime().toLocalDate();
+                if (!arrDate.equals(searchArrDatePicker.getValue())) {
+                    return false;
+                }
+            }
+            
+            return true;
+        });
+    }
+    
+    private void applySorting(String sortBy) {
+        @SuppressWarnings("unchecked")
+        ObservableList<Flight> source = (ObservableList<Flight>) results.getSource();
+        List<Flight> sortedList = new ArrayList<>(source);
+        
+        switch (sortBy) {
+            case "Departure Time":
+                sortedList.sort(Comparator.comparing(Flight::getDepDatetime));
+                break;
+            case "Shortest Duration":
+                sortedList.sort(Comparator.comparing(f -> f.getDurationMinutes() != null ? f.getDurationMinutes() : Long.MAX_VALUE));
+                break;
+            case "Farthest Duration":
+                sortedList.sort(Comparator.comparing(f -> f.getDurationMinutes() != null ? f.getDurationMinutes() : Long.MIN_VALUE, Comparator.reverseOrder()));
+                break;
+        }
+        
+        source.clear();
+        source.addAll(sortedList);
+    }
+    
+    private void loadFlightsFromSpringBoot() {
+        try {
+            String response = restClient.get("/flights/airline/" + Account.getCurrentUser().getAirline().getId(), String.class);
+            if (response != null && !response.trim().isEmpty()) {
+                JsonNode jsonArray = objectMapper.readTree(response);
+                ObservableList<Flight> flights = FXCollections.observableArrayList();
+                
+                if (jsonArray.isArray()) {
+                    for (JsonNode jsonNode : jsonArray) {
+                        try {
+                            Flight flight = FlightConverter.fromJsonNode(jsonNode);
+                            flights.add(flight);
+                        } catch (Exception e) {
+                            System.err.println("Error converting flight: " + e.getMessage());
+                            e.printStackTrace();
+                        }
+                    }
+                }
+                
+                if (!flights.isEmpty()) {
+                    results = new FilteredList<>(flights, flight -> true);
+                    Platform.runLater(() -> {
+                        flightTable.setItems(results);
+                        System.out.println("Loaded " + flights.size() + " flights from Spring Boot");
+                    });
+                } else {
+                    System.out.println("No flights returned from Spring Boot, falling back to DAO");
+                    loadFlightsFromDAO();
+                }
+            } else {
+                System.out.println("Empty response from Spring Boot, falling back to DAO");
+                loadFlightsFromDAO();
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to load flights from Spring Boot: " + e.getMessage());
+            e.printStackTrace();
+            // Fallback to DAO
+            loadFlightsFromDAO();
+        }
+    }
+    
+    private void loadFlightsFromDAO() {
+        FlightDao flightDao = new FlightDao();
+        List<Flight> flights = flightDao.read(Account.getCurrentUser().getAirline());
+        ObservableList<Flight> flightList = FXCollections.observableArrayList(flights);
+        results = new FilteredList<>(flightList, flight -> true);
+        Platform.runLater(() -> {
+            flightTable.setItems(results);
+            System.out.println("Using DAO - loaded " + results.size() + " flights");
+        });
+        useSpringBoot = false;
+    }
+    
 }

@@ -108,11 +108,20 @@
             </Label>
          </children>
       </VBox>
-      <Label fx:id="lblDepDate" alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="-Infinity" minWidth="-Infinity" prefHeight="146.0" prefWidth="120.0" text="Nov 02, 2022" HBox.hgrow="ALWAYS">
-         <font>
-            <Font name="Calibri Bold" size="17.0" />
-         </font>
-      </Label>
+      <VBox alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="-Infinity" minWidth="-Infinity" prefHeight="146.0" prefWidth="120.0" spacing="5.0" HBox.hgrow="ALWAYS">
+         <children>
+            <Label fx:id="lblDepDate" alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" text="Nov 02, 2022" VBox.vgrow="ALWAYS">
+               <font>
+                  <Font name="Calibri Bold" size="17.0" />
+               </font>
+            </Label>
+            <Label fx:id="lblStatus" alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" text="On Time" textAlignment="CENTER">
+               <font>
+                  <Font name="Calibri Bold" size="12.0" />
+               </font>
+            </Label>
+         </children>
+      </VBox>
       <HBox alignment="CENTER" prefWidth="162.0" spacing="10.0">
          <children>
             <ToggleButton fx:id="btnFavorite" mnemonicParsing="false" styleClass="favorite">

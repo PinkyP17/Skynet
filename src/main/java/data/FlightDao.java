@@ -25,10 +25,35 @@ public class FlightDao implements Dao<Flight> {
     }
 
     AirportDao airportDao = new AirportDao();
+    
+    /**
+     * Ensure status column exists in flights table (database migration)
+     */
+    private void ensureStatusColumnExists() {
+        Connection conn = DataSource.getConnection();
+        try {
+            // Check if status column exists
+            DatabaseMetaData metaData = conn.getMetaData();
+            ResultSet columns = metaData.getColumns(null, null, "flights", "status");
+            if (!columns.next()) {
+                // Column doesn't exist, add it
+                Statement stmt = conn.createStatement();
+                stmt.executeUpdate("ALTER TABLE flights ADD COLUMN status TEXT DEFAULT 'On Time';");
+                stmt.close();
+                System.out.println("Added status column to flights table");
+            }
+            columns.close();
+        } catch (SQLException e) {
+            // Column might already exist or table doesn't exist yet
+            System.err.println("Error checking/adding status column: " + e.getMessage());
+        }
+    }
+    
     @Override
     public int create(Flight flight) {
+        ensureStatusColumnExists();
         Connection conn = DataSource.getConnection();
-        String statement = "INSERT INTO flights (dep_datetime, arr_datetime, first_price, business_price, economy_price, luggage_price, weight_price, id_airline, dep_airport, arr_airport) VALUES (?,?,?,?,?,?,?,?,?,?);";
+        String statement = "INSERT INTO flights (dep_datetime, arr_datetime, first_price, business_price, economy_price, luggage_price, weight_price, id_airline, dep_airport, arr_airport, status) VALUES (?,?,?,?,?,?,?,?,?,?,?);";
         try {
             PreparedStatement query = conn.prepareStatement(statement, Statement.RETURN_GENERATED_KEYS);
             query.setString(1, flight.getDepDatetime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
@@ -41,6 +66,7 @@ public class FlightDao implements Dao<Flight> {
             query.setInt(8, flight.getAirline().getId());
             query.setInt(9, flight.getDepAirport().getId());
             query.setInt(10, flight.getArrAirport().getId());
+            query.setString(11, flight.getStatus() != null ? flight.getStatus() : "On Time");
             query.executeUpdate();
             ResultSet id = query.getGeneratedKeys();
             if (id.next()) {
@@ -56,6 +82,7 @@ public class FlightDao implements Dao<Flight> {
 
     @Override
     public Flight read(int id) {
+        ensureStatusColumnExists();
         Connection conn = DataSource.getConnection();
         Flight flight = null;
         String statement = "SELECT * FROM flights WHERE id = ?;";
@@ -78,6 +105,14 @@ public class FlightDao implements Dao<Flight> {
                 flight.setAirline(res.getInt("id_airline"));
                 flight.setDepAirport(airportDao.read(res.getInt("dep_airport")));
 		        flight.setArrAirport(airportDao.read(res.getInt("arr_airport")));
+                // Load status from database
+                try {
+                    String status = res.getString("status");
+                    flight.setStatus(status != null ? status : "On Time");
+                } catch (SQLException e) {
+                    // Column might not exist yet, use default
+                    flight.setStatus("On Time");
+                }
             }
 
             query.close();
@@ -89,7 +124,54 @@ public class FlightDao implements Dao<Flight> {
         return flight;
     }
 
+    /**
+     * Check if a duplicate flight exists (same route, date, and airline)
+     * @param depAirportId Departure airport ID
+     * @param arrAirportId Arrival airport ID
+     * @param depDateTime Departure date and time
+     * @param airlineId Airline ID
+     * @param excludeId Flight ID to exclude (for updates, null for new flights)
+     * @return true if duplicate exists, false otherwise
+     */
+    public boolean isDuplicate(int depAirportId, int arrAirportId, LocalDateTime depDateTime, int airlineId, Integer excludeId) {
+        ensureStatusColumnExists();
+        Connection conn = DataSource.getConnection();
+        
+        try {
+            String sql;
+            PreparedStatement query;
+            if (excludeId != null) {
+                sql = "SELECT COUNT(*) FROM flights WHERE dep_airport = ? AND arr_airport = ? AND DATE(dep_datetime) = DATE(?) AND id_airline = ? AND id != ?";
+                query = conn.prepareStatement(sql);
+                query.setInt(1, depAirportId);
+                query.setInt(2, arrAirportId);
+                query.setString(3, depDateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+                query.setInt(4, airlineId);
+                query.setInt(5, excludeId);
+            } else {
+                sql = "SELECT COUNT(*) FROM flights WHERE dep_airport = ? AND arr_airport = ? AND DATE(dep_datetime) = DATE(?) AND id_airline = ?";
+                query = conn.prepareStatement(sql);
+                query.setInt(1, depAirportId);
+                query.setInt(2, arrAirportId);
+                query.setString(3, depDateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+                query.setInt(4, airlineId);
+            }
+            
+            ResultSet res = query.executeQuery();
+            if (res.next()) {
+                int count = res.getInt(1);
+                query.close();
+                return count > 0;
+            }
+            query.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+    
     public List<Flight> read(Airline airline) {
+        ensureStatusColumnExists();
         Connection conn = DataSource.getConnection();
         LinkedList<Flight> list = new LinkedList<>();
 
@@ -110,6 +192,14 @@ public class FlightDao implements Dao<Flight> {
                 flight.setAirline(res.getInt("id_airline"));
                 flight.setDepAirport(airportDao.read(res.getInt("dep_airport")));
                 flight.setArrAirport(airportDao.read(res.getInt("arr_airport")));
+                // Load status from database
+                try {
+                    String status = res.getString("status");
+                    flight.setStatus(status != null ? status : "On Time");
+                } catch (SQLException e) {
+                    // Column might not exist yet, use default
+                    flight.setStatus("On Time");
+                }
 
                 list.addFirst(flight);
             }
@@ -123,6 +213,7 @@ public class FlightDao implements Dao<Flight> {
 
     @Override
     public List<Flight> readAll() {
+        ensureStatusColumnExists();
         Connection conn = DataSource.getConnection();
         LinkedList<Flight> list = new LinkedList<>();
 
@@ -142,7 +233,14 @@ public class FlightDao implements Dao<Flight> {
                 flight.setAirline(res.getInt("id_airline"));
                 flight.setDepAirport(airportDao.read(res.getInt("dep_airport")));
                 flight.setArrAirport(airportDao.read(res.getInt("arr_airport")));
-              
+                // Load status from database
+                try {
+                    String status = res.getString("status");
+                    flight.setStatus(status != null ? status : "On Time");
+                } catch (SQLException e) {
+                    // Column might not exist yet, use default
+                    flight.setStatus("On Time");
+                }
 
                 list.addFirst(flight);
             }
@@ -156,13 +254,14 @@ public class FlightDao implements Dao<Flight> {
 
     @Override
     public void update(int id, Flight flight) {
+        ensureStatusColumnExists();
         Connection conn = DataSource.getConnection();
         Flight original =  this.read(id);
 
-        String statement = "UPDATE flights SET dep_datetime= ?, arr_datetime= ?, first_price= ?, business_price= ?, economy_price= ?, luggage_price= ?, weight_price= ?, id_airline= ?, dep_airport= ?, arr_airport= ? WHERE id = ?;";
+        String statement = "UPDATE flights SET dep_datetime= ?, arr_datetime= ?, first_price= ?, business_price= ?, economy_price= ?, luggage_price= ?, weight_price= ?, id_airline= ?, dep_airport= ?, arr_airport= ?, status= ? WHERE id = ?;";
         try {
             PreparedStatement query = conn.prepareStatement(statement);
-            query.setInt(11, id);
+            query.setInt(12, id);
 
             if (flight.getDepDatetime() != null) {
                 query.setString(1, flight.getDepDatetime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
@@ -232,6 +331,13 @@ public class FlightDao implements Dao<Flight> {
             }
             else {
                 query.setInt(10, original.getArrAirport().getId());
+            }
+            
+            // Update status
+            if (flight.getStatus() != null) {
+                query.setString(11, flight.getStatus());
+            } else {
+                query.setString(11, original.getStatus() != null ? original.getStatus() : "On Time");
             }
 
             query.executeUpdate();

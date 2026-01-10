@@ -17,7 +17,7 @@ public class Main extends Application {
 	@Override
 	public void start(Stage primaryStage) {
 		try {
-          	Parent root = FXMLLoader.load(getClass().getResource("/view/Signin.fxml"));
+          	Parent root = FXMLLoader.load(Main.class.getResource("/view/Signin.fxml"));
 
 			Scene scene = new Scene(root);
 
@@ -28,7 +28,7 @@ public class Main extends Application {
 			primaryStage.setResizable(false);
 			primaryStage.setScene(scene);
 			primaryStage.setTitle("Skynet");
-			primaryStage.getIcons().add(new Image(getClass().getResource("/images/SkynetLogo.png").toExternalForm()));
+			primaryStage.getIcons().add(new Image(Main.class.getResource("/images/SkynetLogo.png").toExternalForm()));
 			primaryStage.show();
 		}
 		catch (Exception e) {

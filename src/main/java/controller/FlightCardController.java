@@ -62,6 +62,9 @@ public class FlightCardController implements Initializable {
 
     @FXML
     private Label lblExpired;
+    
+    @FXML
+    private Label lblStatus;
 
     @FXML
     private HBox parent;
@@ -109,6 +112,16 @@ public class FlightCardController implements Initializable {
         lblArrAirport.setText(flight.getArrAirport().getIATA());
         lblArrCity.setText(flight.getArrAirport().getCity());
         lblArrTime.setText(flight.getArrDatetime().toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm")));
+        
+        // Set flight status with color coding (if status label exists - only in search page, not small card)
+        if (lblStatus != null) {
+            String status = flight.getStatus();
+            lblStatus.setText(status != null ? status : "On Time");
+            String statusColor = flight.getStatusColor();
+            // Add background color with transparency for better visibility
+            String bgColor = statusColor + "20"; // 20 = ~12% opacity
+            lblStatus.setStyle("-fx-text-fill: " + statusColor + "; -fx-background-color: " + bgColor + "; -fx-background-radius: 5px; -fx-padding: 3px 8px;");
+        }
 
         changeActionButtons();
     }

@@ -104,6 +104,10 @@
 				<version>3.10.1</version>
 				<configuration>
 					<release>${java.version}</release>
+					<compilerArgs>
+						<arg>--add-opens</arg>
+						<arg>java.base/java.lang=ALL-UNNAMED</arg>
+					</compilerArgs>
 				</configuration>
 			</plugin>
 

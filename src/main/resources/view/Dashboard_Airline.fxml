@@ -11,6 +11,8 @@
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.control.ToggleButton?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.collections.FXCollections?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Pane?>
@@ -95,16 +97,36 @@
                               <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
                            </padding>
                            <children>
-                              <HBox alignment="CENTER_LEFT" prefHeight="34.0" prefWidth="310.0" spacing="2.0" styleClass="search-bar">
+                              <VBox spacing="5.0">
                                  <children>
-                                    <FontIcon iconLiteral="mdi-magnify" iconSize="25" />
-                                    <Separator orientation="VERTICAL" prefHeight="200.0" />
-                                    <TextField fx:id="searchBar" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" styleClass="TransparentTextField" HBox.hgrow="ALWAYS" />
+                                    <HBox alignment="CENTER_LEFT" prefHeight="34.0" prefWidth="310.0" spacing="2.0" styleClass="search-bar">
+                                       <children>
+                                          <FontIcon iconLiteral="mdi-magnify" iconSize="25" />
+                                          <Separator orientation="VERTICAL" prefHeight="200.0" />
+                                          <TextField fx:id="searchBar" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" styleClass="TransparentTextField" HBox.hgrow="ALWAYS" />
+                                       </children>
+                                       <padding>
+                                          <Insets bottom="2.0" left="10.0" right="2.0" top="2.0" />
+                                       </padding>
+                                    </HBox>
+                                    <HBox spacing="5.0">
+                                       <children>
+                                          <DatePicker fx:id="searchDepDatePicker" maxWidth="150.0" promptText="Departure Date" />
+                                          <DatePicker fx:id="searchArrDatePicker" maxWidth="150.0" promptText="Arrival Date" />
+                                          <ComboBox fx:id="sortComboBox" maxWidth="150.0" promptText="Sort By">
+                                             <items>
+                                                <FXCollections fx:factory="observableArrayList">
+                                                   <String fx:value="None" />
+                                                   <String fx:value="Departure Time" />
+                                                   <String fx:value="Shortest Duration" />
+                                                   <String fx:value="Farthest Duration" />
+                                                </FXCollections>
+                                             </items>
+                                          </ComboBox>
+                                       </children>
+                                    </HBox>
                                  </children>
-                                 <padding>
-                                    <Insets bottom="2.0" left="10.0" right="2.0" top="2.0" />
-                                 </padding>
-                              </HBox>
+                              </VBox>
                               <Pane HBox.hgrow="ALWAYS" />
                               <Button id="add-button" fx:id="addButton" mnemonicParsing="false" onAction="#openAddTab" prefWidth="100.0" styleClass="action-button" text="Add">
                                  <graphic>
@@ -140,6 +162,8 @@
                                  </columns>
                               </TableColumn>
                               <TableColumn fx:id="colCapacity" maxWidth="2300.0" prefWidth="75.0" styleClass="main-header" text="Capacity" />
+                              <TableColumn fx:id="colDuration" maxWidth="2300.0" prefWidth="100.0" styleClass="main-header" text="Duration" />
+                              <TableColumn fx:id="colStatus" maxWidth="2300.0" prefWidth="100.0" styleClass="main-header" text="Status" />
                           </columns>
                            <columnResizePolicy>
                               <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
@@ -371,6 +395,24 @@
                                     </VBox>
                                  </children>
                               </HBox>
+                           </children>
+                        </VBox>
+                        <VBox spacing="10.0">
+                           <children>
+                              <Label text="Status">
+                                 <font>
+                                    <Font name="Arial Bold" size="14.0" />
+                                 </font>
+                              </Label>
+                              <ComboBox fx:id="statusComboBox" maxWidth="1.7976931348623157E308" promptText="Select Status">
+                                 <items>
+                                    <FXCollections fx:factory="observableArrayList">
+                                       <String fx:value="On Time" />
+                                       <String fx:value="Delayed" />
+                                       <String fx:value="Cancelled" />
+                                    </FXCollections>
+                                 </items>
+                              </ComboBox>
                            </children>
                         </VBox>
                         <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" VBox.vgrow="ALWAYS" />
