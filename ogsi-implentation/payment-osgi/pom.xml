@@ -75,7 +75,8 @@
                         <Private-Package>
                             com.skynet.payment.osgi,
                             com.skynet.payment.osgi.impl,
-                            com.skynet.payment.osgi.dao
+                            com.skynet.payment.osgi.dao,
+                            com.skynet.payment.osgi.client
                         </Private-Package>
                         <Embed-Dependency>
                             sqlite-jdbc;scope=compile|runtime

@@ -2,6 +2,7 @@ package com.skynet.payment.osgi;
 
 import com.skynet.payment.osgi.api.PaymentService;
 import com.skynet.payment.osgi.impl.PaymentServiceImpl;
+import com.skynet.payment.osgi.client.PaymentServiceClient;
 import org.osgi.framework.BundleActivator;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.ServiceRegistration;
@@ -12,6 +13,7 @@ import org.osgi.framework.ServiceRegistration;
 public class Activator implements BundleActivator {
 
     private ServiceRegistration<PaymentService> serviceRegistration;
+    private PaymentServiceClient client;
 
     @Override
     public void start(BundleContext context) throws Exception {
@@ -29,6 +31,11 @@ public class Activator implements BundleActivator {
         );
         
         System.out.println("✅ PaymentService registered in OSGi Service Registry");
+
+        // Start the client to run tests
+        client = new PaymentServiceClient();
+        client.start(context);
+
         System.out.println("========================================");
     }
 
@@ -39,6 +46,10 @@ public class Activator implements BundleActivator {
         
         if (serviceRegistration != null) {
             serviceRegistration.unregister();
+        }
+
+        if (client != null) {
+            client.stop(context);
         }
         
         System.out.println("👋 Payment Bundle stopped");

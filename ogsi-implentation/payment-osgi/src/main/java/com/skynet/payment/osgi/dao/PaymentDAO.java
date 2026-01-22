@@ -10,11 +10,25 @@ import java.util.List;
  */
 public class PaymentDAO {
 
+    
+
     private static final String DB_URL = "jdbc:sqlite:paymentDatabase.db";
 
     public PaymentDAO() {
+        // --- ADD THIS BLOCK ---
+        try {
+            // Force the OSGi ClassLoader to load the SQLite driver
+            Class.forName("org.sqlite.JDBC");
+        } catch (ClassNotFoundException e) {
+            System.err.println("❌ Critical Error: SQLite JDBC Driver not found! Check pom.xml dependencies.");
+            e.printStackTrace();
+        }
+        // ----------------------
+        
         initializeDatabase();
     }
+    
+    // ... rest of the class
 
     private void initializeDatabase() {
         String sql = "CREATE TABLE IF NOT EXISTS payments (" +
