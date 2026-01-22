@@ -58,6 +58,12 @@ public class FlightDao implements Dao<Flight> {
     public Flight read(int id) {
         Connection conn = DataSource.getConnection();
         Flight flight = null;
+        
+        if (conn == null) {
+            System.err.println("ERROR: Database connection is null in FlightDao.read(int)");
+            return null;
+        }
+        
         String statement = "SELECT * FROM flights WHERE id = ?;";
         try {
             PreparedStatement query = conn.prepareStatement(statement);
@@ -66,23 +72,43 @@ public class FlightDao implements Dao<Flight> {
             ResultSet res = query.executeQuery();
 
             if (res.next()) {
-                flight = new Flight();
-                flight.setId(res.getInt("id"));
-                flight.setDepDatetime(LocalDateTime.parse(res.getString("dep_datetime"), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
-                flight.setArrDatetime(LocalDateTime.parse(res.getString("arr_datetime"), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
-                flight.setFirstPrice(res.getDouble("first_price"));
-                flight.setBusinessPrice(res.getDouble("business_price"));
-                flight.setEconomyPrice(res.getDouble("economy_price"));
-                flight.setLuggagePrice(res.getDouble("luggage_price"));
-                flight.setWeightPrice(res.getDouble("weight_price"));
-                flight.setAirline(res.getInt("id_airline"));
-                flight.setDepAirport(airportDao.read(res.getInt("dep_airport")));
-		        flight.setArrAirport(airportDao.read(res.getInt("arr_airport")));
+                try {
+                    flight = new Flight();
+                    flight.setId(res.getInt("id"));
+                    flight.setDepDatetime(LocalDateTime.parse(res.getString("dep_datetime"), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+                    flight.setArrDatetime(LocalDateTime.parse(res.getString("arr_datetime"), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+                    flight.setFirstPrice(res.getDouble("first_price"));
+                    flight.setBusinessPrice(res.getDouble("business_price"));
+                    flight.setEconomyPrice(res.getDouble("economy_price"));
+                    flight.setLuggagePrice(res.getDouble("luggage_price"));
+                    flight.setWeightPrice(res.getDouble("weight_price"));
+                    flight.setAirline(res.getInt("id_airline"));
+                    
+                    int depAirportId = res.getInt("dep_airport");
+                    int arrAirportId = res.getInt("arr_airport");
+                    var depAirport = airportDao.read(depAirportId);
+                    var arrAirport = airportDao.read(arrAirportId);
+                    
+                    if (depAirport == null) {
+                        System.err.println("WARNING: Departure airport with ID " + depAirportId + " not found for flight ID " + id);
+                    }
+                    if (arrAirport == null) {
+                        System.err.println("WARNING: Arrival airport with ID " + arrAirportId + " not found for flight ID " + id);
+                    }
+                    
+                    flight.setDepAirport(depAirport);
+                    flight.setArrAirport(arrAirport);
+                } catch (Exception e) {
+                    System.err.println("ERROR: Failed to parse flight with ID " + id + ": " + e.getMessage());
+                    e.printStackTrace();
+                    flight = null;
+                }
             }
 
             query.close();
 
         } catch (SQLException e) {
+            System.err.println("ERROR: SQLException in FlightDao.read(int): " + e.getMessage());
             e.printStackTrace();
         }
 
@@ -93,31 +119,53 @@ public class FlightDao implements Dao<Flight> {
         Connection conn = DataSource.getConnection();
         LinkedList<Flight> list = new LinkedList<>();
 
+        if (conn == null) {
+            System.err.println("ERROR: Database connection is null in FlightDao.read(Airline)");
+            return list; // Return empty list instead of null
+        }
+
         try {
             PreparedStatement query = conn.prepareStatement("SELECT * FROM flights WHERE id_airline = ? ORDER BY dep_datetime;");
             query.setInt(1, airline.getId());
             ResultSet res = query.executeQuery();
             while (res.next()) {
-                Flight flight = new Flight();
-                flight.setId(res.getInt("id"));
-                flight.setDepDatetime(LocalDateTime.parse(res.getString("dep_datetime"), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
-                flight.setArrDatetime(LocalDateTime.parse(res.getString("arr_datetime"), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
-                flight.setFirstPrice(res.getDouble("first_price"));
-                flight.setBusinessPrice(res.getDouble("business_price"));
-                flight.setEconomyPrice(res.getDouble("economy_price"));
-                flight.setLuggagePrice(res.getDouble("luggage_price"));
-                flight.setWeightPrice(res.getDouble("weight_price"));
-                flight.setAirline(res.getInt("id_airline"));
-                flight.setDepAirport(airportDao.read(res.getInt("dep_airport")));
-                flight.setArrAirport(airportDao.read(res.getInt("arr_airport")));
+                try {
+                    Flight flight = new Flight();
+                    flight.setId(res.getInt("id"));
+                    flight.setDepDatetime(LocalDateTime.parse(res.getString("dep_datetime"), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+                    flight.setArrDatetime(LocalDateTime.parse(res.getString("arr_datetime"), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+                    flight.setFirstPrice(res.getDouble("first_price"));
+                    flight.setBusinessPrice(res.getDouble("business_price"));
+                    flight.setEconomyPrice(res.getDouble("economy_price"));
+                    flight.setLuggagePrice(res.getDouble("luggage_price"));
+                    flight.setWeightPrice(res.getDouble("weight_price"));
+                    flight.setAirline(res.getInt("id_airline"));
+                    
+                    int depAirportId = res.getInt("dep_airport");
+                    int arrAirportId = res.getInt("arr_airport");
+                    var depAirport = airportDao.read(depAirportId);
+                    var arrAirport = airportDao.read(arrAirportId);
+                    
+                    if (depAirport == null || arrAirport == null) {
+                        System.err.println("WARNING: Airport not found for flight ID " + res.getInt("id"));
+                        continue;
+                    }
+                    
+                    flight.setDepAirport(depAirport);
+                    flight.setArrAirport(arrAirport);
 
-                list.addFirst(flight);
+                    list.addFirst(flight);
+                } catch (Exception e) {
+                    System.err.println("ERROR: Failed to parse flight with ID " + res.getInt("id") + ": " + e.getMessage());
+                    e.printStackTrace();
+                }
             }
+            query.close();
             return list;
         } catch (SQLException e) {
-
+            System.err.println("ERROR: SQLException in FlightDao.read(Airline): " + e.getMessage());
             e.printStackTrace();
-            return null;
+            return list; // Return empty list instead of null
         }
     }
 
@@ -126,31 +174,61 @@ public class FlightDao implements Dao<Flight> {
         Connection conn = DataSource.getConnection();
         LinkedList<Flight> list = new LinkedList<>();
 
+        if (conn == null) {
+            System.err.println("ERROR: Database connection is null in FlightDao.readAll()");
+            return list; // Return empty list instead of null
+        }
+
         try {
             PreparedStatement query = conn.prepareStatement("SELECT * FROM flights;");
             ResultSet res = query.executeQuery();
+            int count = 0;
             while (res.next()) {
-                Flight flight = new Flight();
-                flight.setId(res.getInt("id"));
-                flight.setDepDatetime(LocalDateTime.parse(res.getString("dep_datetime"), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
-                flight.setArrDatetime(LocalDateTime.parse(res.getString("arr_datetime"), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
-                flight.setFirstPrice(res.getDouble("first_price"));
-                flight.setBusinessPrice(res.getDouble("business_price"));
-                flight.setEconomyPrice(res.getDouble("economy_price"));
-                flight.setLuggagePrice(res.getDouble("luggage_price"));
-                flight.setWeightPrice(res.getDouble("weight_price"));
-                flight.setAirline(res.getInt("id_airline"));
-                flight.setDepAirport(airportDao.read(res.getInt("dep_airport")));
-                flight.setArrAirport(airportDao.read(res.getInt("arr_airport")));
-              
-
-                list.addFirst(flight);
+                try {
+                    Flight flight = new Flight();
+                    flight.setId(res.getInt("id"));
+                    flight.setDepDatetime(LocalDateTime.parse(res.getString("dep_datetime"), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+                    flight.setArrDatetime(LocalDateTime.parse(res.getString("arr_datetime"), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+                    flight.setFirstPrice(res.getDouble("first_price"));
+                    flight.setBusinessPrice(res.getDouble("business_price"));
+                    flight.setEconomyPrice(res.getDouble("economy_price"));
+                    flight.setLuggagePrice(res.getDouble("luggage_price"));
+                    flight.setWeightPrice(res.getDouble("weight_price"));
+                    flight.setAirline(res.getInt("id_airline"));
+                    
+                    // Check if airports exist before setting them
+                    int depAirportId = res.getInt("dep_airport");
+                    int arrAirportId = res.getInt("arr_airport");
+                    var depAirport = airportDao.read(depAirportId);
+                    var arrAirport = airportDao.read(arrAirportId);
+                    
+                    if (depAirport == null) {
+                        System.err.println("WARNING: Departure airport with ID " + depAirportId + " not found for flight ID " + res.getInt("id"));
+                        continue; // Skip this flight if airport is missing
+                    }
+                    if (arrAirport == null) {
+                        System.err.println("WARNING: Arrival airport with ID " + arrAirportId + " not found for flight ID " + res.getInt("id"));
+                        continue; // Skip this flight if airport is missing
+                    }
+                    
+                    flight.setDepAirport(depAirport);
+                    flight.setArrAirport(arrAirport);
+                    
+                    list.addFirst(flight);
+                    count++;
+                } catch (Exception e) {
+                    System.err.println("ERROR: Failed to parse flight with ID " + res.getInt("id") + ": " + e.getMessage());
+                    e.printStackTrace();
+                    // Continue to next flight instead of failing completely
+                }
             }
+            query.close();
+            System.out.println("INFO: Loaded " + count + " flights from database");
             return list;
         } catch (SQLException e) {
-
+            System.err.println("ERROR: SQLException in FlightDao.readAll(): " + e.getMessage());
             e.printStackTrace();
-            return null;
+            return list; // Return empty list instead of null
         }
     }
 

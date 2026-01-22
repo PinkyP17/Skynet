@@ -65,6 +65,10 @@ public class SearchPageController implements Initializable {
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         parent.getStylesheets().add(getClass().getResource("/style/SearchPage.css").toExternalForm());
+        
+        // Debug: Check if flights list is loaded
+        System.out.println("INFO: SearchPageController initialized. Total flights loaded: " + results.size());
+        
         lblResultsCounter.setText("Results(" + results.size() + ")");
 
         depCountry.setItems(AirportDao.getCountryList());
@@ -144,30 +148,35 @@ public class SearchPageController implements Initializable {
     void search(ActionEvent event) {
 
         results.setPredicate(flight -> {
+            // Safety check: skip flights with null airports or null datetime
+            if (flight == null || flight.getDepAirport() == null || flight.getArrAirport() == null || flight.getDepDatetime() == null) {
+                return false;
+            }
+            
             if (flight.getDepDatetime().isBefore(LocalDateTime.now())) {
                 return false;
             }
 
             if (depCountry.getSelectionModel().getSelectedItem() != null && !depCountry.getSelectionModel().getSelectedItem().isBlank()) {
-                if (!flight.getDepAirport().getCountry().equals(depCountry.getSelectionModel().getSelectedItem())) {
+                if (flight.getDepAirport().getCountry() == null || !flight.getDepAirport().getCountry().equals(depCountry.getSelectionModel().getSelectedItem())) {
                     return false;
                 }
             }
 
             if (arrCountry.getSelectionModel().getSelectedItem() != null && !arrCountry.getSelectionModel().getSelectedItem().isBlank()) {
-                if (!flight.getArrAirport().getCountry().equals(arrCountry.getSelectionModel().getSelectedItem())) {
+                if (flight.getArrAirport().getCountry() == null || !flight.getArrAirport().getCountry().equals(arrCountry.getSelectionModel().getSelectedItem())) {
                     return false;
                 }
             }
 
             if (depCity.getSelectionModel().getSelectedItem() != null && !depCity.getSelectionModel().getSelectedItem().isBlank()) {
-                if (!flight.getDepAirport().getCity().equals(depCity.getSelectionModel().getSelectedItem())) {
+                if (flight.getDepAirport().getCity() == null || !flight.getDepAirport().getCity().equals(depCity.getSelectionModel().getSelectedItem())) {
                     return false;
                 }
             }
 
             if (arrCity.getSelectionModel().getSelectedItem() != null && !arrCity.getSelectionModel().getSelectedItem().isBlank()) {
-                if (!flight.getArrAirport().getCity().equals(arrCity.getSelectionModel().getSelectedItem())) {
+                if (flight.getArrAirport().getCity() == null || !flight.getArrAirport().getCity().equals(arrCity.getSelectionModel().getSelectedItem())) {
                     return false;
                 }
             }

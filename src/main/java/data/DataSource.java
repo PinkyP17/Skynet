@@ -17,17 +17,26 @@ public class DataSource {
             String resourceName= "/dataBase/applicationDataBase.db";
 
             if (!Files.exists(dataBasePath)) {
+                System.out.println("INFO: Database not found, creating from template: " + dataBasePath);
                 Files.createDirectories(dataBasePath.getParent());
                 try(InputStream inputStream = getClass().getResourceAsStream(resourceName)) {
                     Objects.requireNonNull(inputStream, "Not found resource: " + resourceName);
                     Files.copy(inputStream, dataBasePath);
+                    System.out.println("INFO: Database created successfully from template");
                 }
+            } else {
+                System.out.println("INFO: Using existing database: " + dataBasePath);
             }
 
-            connection = DriverManager.getConnection("jdbc:sqlite:" + dataBasePath.toAbsolutePath());
+            String jdbcUrl = "jdbc:sqlite:" + dataBasePath.toAbsolutePath();
+            System.out.println("INFO: Connecting to database: " + jdbcUrl);
+            connection = DriverManager.getConnection(jdbcUrl);
+            System.out.println("INFO: Database connection established successfully");
 
         } catch (SQLException | IOException e) {
-            System.out.println(e.getMessage());
+            System.err.println("ERROR: Failed to initialize database connection: " + e.getMessage());
+            e.printStackTrace();
+            connection = null; // Ensure connection is null on error
         }
     }
 

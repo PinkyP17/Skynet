@@ -3,8 +3,10 @@
 <?import java.lang.String?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ChoiceBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TextField?>
 <?import javafx.scene.control.ToggleButton?>
 <?import javafx.scene.effect.InnerShadow?>
 <?import javafx.scene.layout.ColumnConstraints?>
@@ -200,70 +202,56 @@
                               </Label>
                            </children>
                         </VBox>
-                        <VBox maxHeight="-Infinity" prefWidth="100.0">
+                        <VBox maxHeight="-Infinity" prefWidth="100.0" spacing="10.0">
                            <children>
-                              <Label text="Legend" textFill="#7a7a7a">
+                              <Label text="Seat Availability Statistics" textFill="#7a7a7a">
                                  <font>
                                     <Font name="System Bold" size="16.0" />
                                  </font>
                               </Label>
-                              <HBox>
+                              <VBox spacing="5.0">
                                  <children>
-                                    <HBox alignment="CENTER_LEFT" maxWidth="-Infinity" minWidth="-Infinity" prefWidth="100.0" HBox.hgrow="ALWAYS">
-                                       <children>
-                                          <Label minHeight="-Infinity" minWidth="-Infinity" prefHeight="20.0" prefWidth="20.0" HBox.hgrow="ALWAYS">
-                                             <font>
-                                                <Font name="System Bold" size="11.0" />
-                                             </font>
-                                             <HBox.margin>
-                                                <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-                                             </HBox.margin>
-                                             <styleClass>
-                                                <String fx:value="SeatIcon" />
-                                                <String fx:value="SelectedSeatIcon" />
-                                             </styleClass>
-                                          </Label>
-                                          <Label maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" prefHeight="30.0" prefWidth="55.0" text="Selected" HBox.hgrow="ALWAYS">
-                                             <font>
-                                                <Font name="System Bold" size="12.0" />
-                                             </font>
-                                          </Label>
-                                       </children>
-                                    </HBox>
-                                    <Label maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" />
-                                    <HBox alignment="CENTER_LEFT" maxWidth="-Infinity" minWidth="-Infinity" prefWidth="100.0" HBox.hgrow="ALWAYS">
-                                       <children>
-                                          <Label id="UnavailableSeatIcon" minHeight="-Infinity" minWidth="-Infinity" prefHeight="20.0" prefWidth="20.0" HBox.hgrow="ALWAYS">
-                                             <font>
-                                                <Font name="System Bold" size="11.0" />
-                                             </font>
-                                             <HBox.margin>
-                                                <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-                                             </HBox.margin>
-                                             <styleClass>
-                                                <String fx:value="SeatIcon" />
-                                                <String fx:value="UnavailableSeatIcon" />
-                                             </styleClass>
-                                          </Label>
-                                          <Label maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" text="Unavailable" HBox.hgrow="ALWAYS">
-                                             <font>
-                                                <Font name="System Bold" size="12.0" />
-                                             </font>
-                                          </Label>
-                                       </children>
-                                    </HBox>
-                                    <Label maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" />
-                                    <Label maxHeight="1.7976931348623157E308" maxWidth="-Infinity" minWidth="-Infinity" prefWidth="100.0" />
+                                    <Label fx:id="lblTotalSeats" text="Total: 0 seats">
+                                       <font>
+                                          <Font name="System Bold" size="12.0" />
+                                       </font>
+                                    </Label>
+                                    <Label fx:id="lblOccupiedSeats" text="Occupied: 0 seats">
+                                       <font>
+                                          <Font name="System Bold" size="12.0" />
+                                       </font>
+                                    </Label>
+                                    <Label fx:id="lblAvailableFirst" text="First: 0 available">
+                                       <font>
+                                          <Font size="12.0" />
+                                       </font>
+                                    </Label>
+                                    <Label fx:id="lblAvailableBusiness" text="Business: 0 available">
+                                       <font>
+                                          <Font size="12.0" />
+                                       </font>
+                                    </Label>
+                                    <Label fx:id="lblAvailableEconomy" text="Economy: 0 available">
+                                       <font>
+                                          <Font size="12.0" />
+                                       </font>
+                                    </Label>
                                  </children>
-                              </HBox>
-                              <HBox>
+                              </VBox>
+                           </children>
+                        </VBox>
+                        <VBox maxHeight="-Infinity" prefWidth="100.0" spacing="10.0">
+                           <children>
+                              <Label text="Seat Legend" textFill="#7a7a7a">
+                                 <font>
+                                    <Font name="System Bold" size="16.0" />
+                                 </font>
+                              </Label>
+                              <VBox spacing="5.0">
                                  <children>
-                                    <HBox alignment="CENTER_LEFT" maxWidth="-Infinity" minWidth="-Infinity" prefWidth="100.0" HBox.hgrow="ALWAYS">
+                                    <HBox alignment="CENTER_LEFT" spacing="10.0">
                                        <children>
-                                          <Label minHeight="-Infinity" minWidth="-Infinity" prefHeight="20.0" prefWidth="20.0" HBox.hgrow="ALWAYS">
-                                             <font>
-                                                <Font name="System Bold" size="11.0" />
-                                             </font>
+                                          <Label minHeight="-Infinity" minWidth="-Infinity" prefHeight="20.0" prefWidth="20.0">
                                              <HBox.margin>
                                                 <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
                                              </HBox.margin>
@@ -272,20 +260,16 @@
                                                 <String fx:value="SeatIcon" />
                                              </styleClass>
                                           </Label>
-                                          <Label maxHeight="1.7976931348623157E308" minWidth="-Infinity" prefHeight="30.0" prefWidth="55.0" text="First" HBox.hgrow="ALWAYS">
+                                          <Label text="First Class">
                                              <font>
-                                                <Font name="System Bold" size="12.0" />
+                                                <Font size="12.0" />
                                              </font>
                                           </Label>
                                        </children>
                                     </HBox>
-                                    <Label maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" />
-                                    <HBox alignment="CENTER_LEFT" maxWidth="-Infinity" minWidth="-Infinity" prefWidth="100.0" HBox.hgrow="ALWAYS">
+                                    <HBox alignment="CENTER_LEFT" spacing="10.0">
                                        <children>
-                                          <Label minHeight="-Infinity" minWidth="-Infinity" prefHeight="20.0" prefWidth="20.0" HBox.hgrow="ALWAYS">
-                                             <font>
-                                                <Font name="System Bold" size="11.0" />
-                                             </font>
+                                          <Label minHeight="-Infinity" minWidth="-Infinity" prefHeight="20.0" prefWidth="20.0">
                                              <HBox.margin>
                                                 <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
                                              </HBox.margin>
@@ -294,37 +278,102 @@
                                                 <String fx:value="BusinessSeatIcon" />
                                              </styleClass>
                                           </Label>
-                                          <Label maxHeight="1.7976931348623157E308" minWidth="-Infinity" prefHeight="30.0" prefWidth="55.0" text="Business" HBox.hgrow="ALWAYS">
+                                          <Label text="Business Class">
                                              <font>
-                                                <Font name="System Bold" size="12.0" />
+                                                <Font size="12.0" />
                                              </font>
                                           </Label>
                                        </children>
                                     </HBox>
-                                    <Label maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" />
-                                    <HBox alignment="CENTER_LEFT" maxWidth="-Infinity" minWidth="-Infinity" prefWidth="100.0" HBox.hgrow="ALWAYS">
+                                    <HBox alignment="CENTER_LEFT" spacing="10.0">
                                        <children>
-                                          <Label minHeight="-Infinity" minWidth="-Infinity" prefHeight="20.0" prefWidth="20.0" HBox.hgrow="ALWAYS">
-                                             <font>
-                                                <Font name="System Bold" size="11.0" />
-                                             </font>
+                                          <Label minHeight="-Infinity" minWidth="-Infinity" prefHeight="20.0" prefWidth="20.0">
                                              <HBox.margin>
                                                 <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
                                              </HBox.margin>
                                              <styleClass>
-                                                <String fx:value="EconomySeatIcon" />
                                                 <String fx:value="SeatIcon" />
+                                                <String fx:value="EconomySeatIcon" />
                                              </styleClass>
                                           </Label>
-                                          <Label maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minWidth="-Infinity" prefHeight="30.0" prefWidth="55.0" text="Economy" HBox.hgrow="ALWAYS">
+                                          <Label text="Economy Class">
                                              <font>
-                                                <Font name="System Bold" size="12.0" />
+                                                <Font size="12.0" />
+                                             </font>
+                                          </Label>
+                                       </children>
+                                    </HBox>
+                                    <HBox alignment="CENTER_LEFT" spacing="10.0">
+                                       <children>
+                                          <Label minHeight="-Infinity" minWidth="-Infinity" prefHeight="20.0" prefWidth="20.0">
+                                             <HBox.margin>
+                                                <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                             </HBox.margin>
+                                             <styleClass>
+                                                <String fx:value="SeatIcon" />
+                                                <String fx:value="UnavailableSeatIcon" />
+                                             </styleClass>
+                                          </Label>
+                                          <Label text="Seat Taken">
+                                             <font>
+                                                <Font size="12.0" />
+                                             </font>
+                                          </Label>
+                                       </children>
+                                    </HBox>
+                                    <HBox alignment="CENTER_LEFT" spacing="10.0">
+                                       <children>
+                                          <Label minHeight="-Infinity" minWidth="-Infinity" prefHeight="20.0" prefWidth="20.0">
+                                             <HBox.margin>
+                                                <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                                             </HBox.margin>
+                                             <styleClass>
+                                                <String fx:value="SeatIcon" />
+                                                <String fx:value="SelectedSeatIcon" />
+                                             </styleClass>
+                                          </Label>
+                                          <Label text="Your Selected Seat">
+                                             <font>
+                                                <Font size="12.0" />
                                              </font>
                                           </Label>
                                        </children>
                                     </HBox>
                                  </children>
-                              </HBox>
+                              </VBox>
+                           </children>
+                        </VBox>
+                        <VBox maxHeight="-Infinity" prefWidth="100.0" spacing="10.0">
+                           <children>
+                              <Label text="Filter &amp; Search" textFill="#7a7a7a">
+                                 <font>
+                                    <Font name="System Bold" size="16.0" />
+                                 </font>
+                              </Label>
+                              <VBox spacing="10.0">
+                                 <children>
+                                    <VBox spacing="5.0">
+                                       <children>
+                                          <Label text="Filter by Type:">
+                                             <font>
+                                                <Font name="System Bold" size="12.0" />
+                                             </font>
+                                          </Label>
+                                          <ChoiceBox fx:id="filterByType" prefWidth="200.0" />
+                                       </children>
+                                    </VBox>
+                                    <VBox spacing="5.0">
+                                       <children>
+                                          <Label text="Search Seat (e.g., A5, B12):">
+                                             <font>
+                                                <Font name="System Bold" size="12.0" />
+                                             </font>
+                                          </Label>
+                                          <TextField fx:id="seatSearchField" prefWidth="200.0" promptText="Enter seat number..." />
+                                       </children>
+                                    </VBox>
+                                 </children>
+                              </VBox>
                            </children>
                         </VBox>
                         <VBox maxHeight="-Infinity" prefWidth="100.0">
