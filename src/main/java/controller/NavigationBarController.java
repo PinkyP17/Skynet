@@ -50,7 +50,11 @@ public class NavigationBarController implements Initializable {
     @FXML
     private ToggleButton themeButton;
 
+    @FXML
+    private ToggleButton paymentBtn;
+
     private final ObservableList<Node> searchPages = FXCollections.observableList(ApplicationController.searchPageStack);
+    private final ObservableList<Node> paymentPages = FXCollections.observableList(new Stack<>());
 
     private final ObservableList<Node> homePages = FXCollections.observableList(ApplicationController.homePageStack);
     private Node accountPages;
@@ -163,6 +167,25 @@ public class NavigationBarController implements Initializable {
         }
         else {
             loadPage(searchPages);
+        }
+    }
+
+    @FXML
+    void openPayment(ActionEvent event) {
+        paymentBtn.setSelected(true);
+
+        // Simple single page for now, no stack needed really but keeping pattern
+        if (paymentPages.isEmpty()) {
+            paymentPages.add(loadPage("/view/PaymentPage.fxml"));
+        } else {
+            loadPage(paymentPages);
+            if (!paymentPages.isEmpty()) {
+                Node page = paymentPages.get(0);
+                Object controller = page.getUserData();
+                if (controller instanceof PaymentPageController) {
+                    ((PaymentPageController) controller).refreshPaymentHistory();
+                }
+            }
         }
     }
 

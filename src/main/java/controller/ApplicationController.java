@@ -9,6 +9,7 @@ import javafx.fxml.Initializable;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.image.Image;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
@@ -59,12 +60,27 @@ public class ApplicationController implements Initializable {
                 root.getStylesheets().add(ApplicationController.class.getResource("/style/Application.css").toExternalForm());
             }
 
-            Scene scene = new Scene(root, 1366, 768);
+            // Scene scene = new Scene(root, 1366, 768);
 
-            Palette.getDefaultPalette().usePalette(scene);
+            // Palette.getDefaultPalette().usePalette(scene);
+            ScrollPane scrollPane = new ScrollPane(root);
+            scrollPane.setFitToWidth(false);  // Allow horizontal scrolling
+            scrollPane.setFitToHeight(false); // Allow vertical scrolling
+            scrollPane.setPannable(true);     // Allow mouse dragging
+            // -------------------------
 
+            // 3. Create Scene with the ScrollPane
+            Scene scene = new Scene(scrollPane);
+
+            // Optional: Palette loading (Wrapped in try-catch for safety)
+            try {
+                Palette.getDefaultPalette().usePalette(scene);
+            } catch (Exception e) {
+                System.out.println("Warning: Palette failed to load in appLoad.");
+            }
             primaryStage.setScene(scene);
             primaryStage.setTitle("Skynet");
+            primaryStage.setMaximized(true);
             primaryStage.getIcons().add(new Image(ApplicationController.class.getResource("/images/SkynetLogo.png").toExternalForm()));
             primaryStage.show();
 

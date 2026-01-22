@@ -18,7 +18,7 @@
     <description>Passenger Profile Module for Skynet Flight Booking System</description>
 
     <properties>
-        <java.version>21</java.version>
+        <java.version>17</java.version>
     </properties>
 
     <dependencies>
