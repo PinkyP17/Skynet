@@ -1,81 +1,88 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ListView?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
-<?import javafx.scene.text.Font?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 
-<ScrollPane fitToWidth="true" style="-fx-background-color: transparent;" xmlns="http://javafx.com/javafx/18" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.PaymentPageController">
+<ScrollPane fitToWidth="true" styleClass="scroll-pane" stylesheets="@../style/PaymentPage.css" xmlns="http://javafx.com/javafx/18" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.PaymentPageController">
    <content>
-      <VBox alignment="TOP_CENTER" spacing="20.0" style="-fx-background-color: white;">
-         <padding>
-            <Insets bottom="30.0" left="50.0" right="50.0" top="30.0" />
-         </padding>
+      <VBox alignment="TOP_CENTER" spacing="30.0" style="-fx-background-color: #f4f6f9; -fx-padding: 40;">
          <children>
-            <Label text="Payment &amp; Invoicing" textFill="#1e1e1e">
-               <font>
-                  <Font name="System Bold" size="28.0" />
-               </font>
-            </Label>
-            <HBox spacing="20.0">
+            <HBox alignment="CENTER_LEFT" spacing="20.0">
                <children>
-                  <VBox spacing="15.0" style="-fx-background-color: #f5f5f5; -fx-background-radius: 10;" HBox.hgrow="ALWAYS">
-                     <padding>
-                        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
-                     </padding>
+                  <Button onAction="#goBack" styleClass="secondary-button" text="Back">
+                     <graphic>
+                        <FontIcon iconLiteral="mdi-arrow-left" iconSize="20"/>
+                     </graphic>
+                  </Button>
+                  <Label styleClass="header-label" text="Payment &amp; Services" />
+               </children>
+            </HBox>
+            
+            <HBox alignment="CENTER" spacing="30.0">
+               <children>
+                  <!-- Payment Simulation Card -->
+                  <VBox spacing="20.0" styleClass="payment-card" HBox.hgrow="ALWAYS" maxWidth="500">
                      <children>
-                        <Label text="Simulate Payment">
-                           <font>
-                              <Font name="System Bold" size="18.0" />
-                           </font>
-                        </Label>
-                        <TextField fx:id="amountField" promptText="Amount (e.g. 150.00)" />
-                        <TextField fx:id="currencyField" promptText="Currency (USD, EUR)" text="USD" />
-                        <TextField fx:id="promoCodeField" promptText="Promo Code (Optional)" />
-                        <Button mnemonicParsing="false" onAction="#handleProcessPayment" prefHeight="40.0" prefWidth="200.0" style="-fx-background-color: #4caf50; -fx-text-fill: white;" text="Process Payment">
+                        <Label styleClass="section-header" text="Make a Payment" />
+                        
+                        <VBox spacing="5">
+                           <Label text="Amount" style="-fx-font-weight: bold; -fx-text-fill: #7f8c8d;"/>
+                           <TextField fx:id="amountField" promptText="0.00" />
+                        </VBox>
+                        
+                        <VBox spacing="5">
+                           <Label text="Currency" style="-fx-font-weight: bold; -fx-text-fill: #7f8c8d;"/>
+                           <ComboBox fx:id="currencyComboBox" promptText="Select Currency" maxWidth="1.7976931348623157E308"/>
+                        </VBox>
+                        
+                        <VBox spacing="5">
+                           <Label text="Promo Code" style="-fx-font-weight: bold; -fx-text-fill: #7f8c8d;"/>
+                           <HBox spacing="10" alignment="CENTER_LEFT">
+                              <TextField fx:id="promoCodeField" promptText="Enter Code" HBox.hgrow="ALWAYS"/>
+                              <Button onAction="#handleApplyPromo" styleClass="secondary-button" text="Apply"/>
+                           </HBox>
+                        </VBox>
+
+                        <Button onAction="#handleProcessPayment" prefHeight="50.0" maxWidth="1.7976931348623157E308" styleClass="premium-button" text="PROCESS PAYMENT">
                            <graphic>
-                              <FontIcon iconLiteral="mdi-credit-card" iconColor="WHITE" />
+                              <FontIcon iconLiteral="mdi-credit-card" iconColor="WHITE" iconSize="18"/>
                            </graphic>
-                           <font>
-                              <Font name="System Bold" size="14.0" />
-                           </font>
                         </Button>
-                        <Button mnemonicParsing="false" onAction="#handleApplyPromo" prefHeight="30.0" text="Apply Promo Code" />
-                        <Label fx:id="statusLabel" textFill="#2196f3" wrapText="true" />
+                        
+                        <Label fx:id="statusLabel" styleClass="status-label" wrapText="true" alignment="CENTER" maxWidth="1.7976931348623157E308"/>
                      </children>
                   </VBox>
-                  <VBox spacing="15.0" style="-fx-background-color: #f5f5f5; -fx-background-radius: 10;" HBox.hgrow="ALWAYS">
-                     <padding>
-                        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
-                     </padding>
+
+                  <!-- History & Services Card -->
+                  <VBox spacing="20.0" styleClass="payment-card" HBox.hgrow="ALWAYS" maxWidth="500">
                      <children>
-                        <Label text="Payment History">
-                           <font>
-                              <Font name="System Bold" size="18.0" />
-                           </font>
-                        </Label>
-                        <ListView fx:id="paymentListView" prefHeight="300.0" />
-                        <HBox spacing="10.0">
+                        <Label styleClass="section-header" text="History &amp; Actions" />
+                        
+                        <ListView fx:id="paymentListView" prefHeight="250.0" />
+                        
+                        <HBox spacing="15.0" alignment="CENTER">
                            <children>
-                              <Button mnemonicParsing="false" onAction="#handleGenerateInvoice" text="Generate Invoice">
+                              <Button onAction="#handleGenerateInvoice" styleClass="secondary-button" text="Get Invoice" prefWidth="150" prefHeight="40">
                                  <graphic>
-                                    <FontIcon iconLiteral="mdi-file-document" />
+                                    <FontIcon iconLiteral="mdi-file-document" iconSize="16"/>
                                  </graphic>
                               </Button>
-                              <Button mnemonicParsing="false" onAction="#handleRefund" text="Request Refund">
+                              <Button onAction="#handleRefund" styleClass="secondary-button" text="Refund" prefWidth="150" prefHeight="40">
                                  <graphic>
-                                    <FontIcon iconLiteral="mdi-undo" />
+                                    <FontIcon iconLiteral="mdi-undo" iconSize="16"/>
                                  </graphic>
                               </Button>
                            </children>
                         </HBox>
-                        <Label fx:id="historyStatusLabel" textFill="#2196f3" wrapText="true" />
+                        
+                        <Label fx:id="historyStatusLabel" styleClass="status-label" wrapText="true" alignment="CENTER" maxWidth="1.7976931348623157E308"/>
                      </children>
                   </VBox>
                </children>

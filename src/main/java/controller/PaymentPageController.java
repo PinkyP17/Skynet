@@ -11,6 +11,9 @@ import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import models.*;
 import util.RestClient;
+import org.controlsfx.control.Notifications; 
+import javafx.geometry.Pos;
+import javafx.util.Duration;
 
 import java.io.IOException;
 import java.net.URL;
@@ -22,7 +25,7 @@ public class PaymentPageController implements Initializable {
 
     // Simple View Fields
     @FXML private TextField amountField;
-    @FXML private TextField currencyField;
+    @FXML private ComboBox<String> currencyComboBox; 
     @FXML private TextField promoCodeField;
     @FXML private ListView<String> paymentListView;
     @FXML private Label statusLabel;
@@ -53,14 +56,26 @@ public class PaymentPageController implements Initializable {
     private RestClient restClient;
     private Flight flight;
     private Seat seat;
+    
+    // Booking Flow State
+    private boolean isBookingFlow = false;
+    private int luggageCount = 0;
+    private double luggageWeight = 0.0;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        restClient = RestClient.getInstance();
+        System.out.println("PaymentPageController: Initializing...");
+        try {
+            restClient = RestClient.getInstance();
         
         // Initialize Simple View if active
         if (paymentListView != null) {
             refreshPaymentHistory();
+        }
+        
+        if (currencyComboBox != null) {
+            currencyComboBox.getItems().addAll("USD", "EUR", "GBP", "JPY");
+            currencyComboBox.getSelectionModel().selectFirst();
         }
 
         // Initialize Complex View if active
@@ -74,23 +89,49 @@ public class PaymentPageController implements Initializable {
              spinnerWeight.setValueFactory(weightFactory);
              spinnerWeight.valueProperty().addListener((obs, oldVal, newVal) -> updateTotalPrice());
         }
+        System.out.println("PaymentPageController: Initialization Complete.");
+        } catch (Exception e) {
+            System.out.println("PaymentPageController: Error in initialize!");
+            e.printStackTrace();
+        }
     }
 
     public void setData(Flight flight, Seat seat) {
+        System.out.println("PaymentPageController: setData called with flight=" + flight);
+        try {
         this.flight = flight;
         this.seat = seat;
         
         // Populate Simple View
         if (amountField != null && flight != null && seat != null) {
             double price = getSeatPrice(flight, seat);
-            amountField.setText(String.valueOf(price));
-            currencyField.setText("USD"); 
-            statusLabel.setText("Booking for " + flight.getDepAirport().getIATA() + " -> " + flight.getArrAirport().getIATA());
+            amountField.setText(String.format("%.2f", price)); 
+            if (currencyComboBox != null) currencyComboBox.setValue("USD"); 
+            statusLabel.setText("Booking: " + flight.getDepAirport().getIATA() + " -> " + flight.getArrAirport().getIATA());
         }
 
         // Populate Complex View
         if (lblDepCity != null && flight != null && seat != null) {
             populateComplexView();
+        }
+        } catch (Exception e) {
+            System.out.println("PaymentPageController: Error in setData!");
+            e.printStackTrace();
+        }
+    }
+    
+    public void setBookingData(Flight flight, Seat seat, double totalAmount, int luggageCount, double luggageWeight) {
+        this.flight = flight;
+        this.seat = seat;
+        this.luggageCount = luggageCount;
+        this.luggageWeight = luggageWeight;
+        this.isBookingFlow = true;
+
+        if (amountField != null) {
+            amountField.setText(String.format("%.2f", totalAmount));
+        }
+        if (statusLabel != null) {
+            statusLabel.setText("Booking for " + flight.getDepAirport().getIATA() + " -> " + flight.getArrAirport().getIATA());
         }
     }
 
@@ -119,7 +160,6 @@ public class PaymentPageController implements Initializable {
         double basePrice = getSeatPrice(flight, seat);
         lblClassPrice.setText(basePrice + "$");
         
-        // Add Mock Cards to avoid empty list confusion
         if (creditCardList != null && creditCardList.getChildren().isEmpty()) {
             CheckBox card1 = new CheckBox("**** **** **** 1234 (Visa)");
             card1.setSelected(true);
@@ -137,7 +177,6 @@ public class PaymentPageController implements Initializable {
          int luggages = spinnerLuggage.getValue();
          int weight = spinnerWeight.getValue();
          
-         // Mock pricing for extras
          double luggageCost = luggages * 50.0;
          double weightCost = weight * 10.0;
          
@@ -152,51 +191,27 @@ public class PaymentPageController implements Initializable {
 
     @FXML
     void payNow(ActionEvent event) {
+        // This is called from the Booking Summary Page (Complex View)
         try {
             double total = Double.parseDouble(lblTotalPrice.getText().replace("$", ""));
             
-            // 1. Process Payment (Mock)
-            java.util.Map<String, Object> request = new java.util.HashMap<>();
-            request.put("amount", total);
-            request.put("currency", "USD");
-            request.put("method", "CREDIT_CARD");
-            request.put("bookingId", 0L); // New booking
-
-            Map response = restClient.post(RestClient.PAYMENT_SERVICE_URL, "/process", request, Map.class);
+            // Navigate to Payment Page (Premium View)
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/PaymentPage.fxml"));
+            Parent page = loader.load();
+            VBox.setVgrow(page, Priority.ALWAYS);
             
-            if (response != null && "COMPLETED".equals(response.get("status"))) {
-                // 2. Create Reservation
-                Reservation reservation = new Reservation(
-                    flight, 
-                    Account.getCurrentUser().getId(), 
-                    seat, 
-                    spinnerLuggage.getValue(), 
-                    (double) spinnerWeight.getValue()
-                );
-                
-                ReservationDao reservationDao = new ReservationDao();
-                reservationDao.create(reservation);
-                
-                // Show Success Alert
-                javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
-                alert.setTitle("Booking Successful");
-                alert.setHeaderText(null);
-                alert.setContentText("Payment Processed Successfully!\nBooking ID: " + response.get("id"));
-                alert.showAndWait();
-                
-                // 3. Navigate to Ticket Page
-                navigateToTicketPage(reservation);
-                
-            } else {
-                Alert alert = new Alert(Alert.AlertType.ERROR);
-                alert.setContentText("Payment Failed. Please try again.");
-                alert.show();
-            }
+            PaymentPageController controller = loader.getController();
+            controller.setBookingData(flight, seat, total, spinnerLuggage.getValue(), (double) spinnerWeight.getValue());
+            
+            ApplicationController.navBarController.pushPage(page);
+            
+            StackPane content = (StackPane) parent.getScene().lookup("#content");
+            content.getChildren().add(page);
 
         } catch (Exception e) {
             e.printStackTrace();
             Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setContentText("Error processing booking: " + e.getMessage());
+            alert.setContentText("Error navigating to payment: " + e.getMessage());
             alert.show();
         }
     }
@@ -210,9 +225,17 @@ public class PaymentPageController implements Initializable {
             TicketPageController controller = loader.getController();
             controller.setData(reservation);
             
-            StackPane content = (StackPane) parent.getScene().lookup("#content");
-            content.getChildren().clear();
-            content.getChildren().add(page);
+            StackPane content = null;
+             if (parent != null) {
+                 content = (StackPane) parent.getScene().lookup("#content");
+             } else if (amountField != null) {
+                 content = (StackPane) amountField.getScene().lookup("#content");
+             }
+             
+             if (content != null) {
+                 content.getChildren().clear();
+                 content.getChildren().add(page);
+             }
             
         } catch (IOException e) {
             e.printStackTrace();
@@ -222,14 +245,20 @@ public class PaymentPageController implements Initializable {
     @FXML 
     void goBack(ActionEvent event) {
         ApplicationController.navBarController.popPage();
-        StackPane content = (StackPane) parent.getScene().lookup("#content");
-        content.getChildren().remove(content.getChildren().size() - 1);
+        StackPane content = null;
+         if (parent != null) {
+             content = (StackPane) parent.getScene().lookup("#content");
+         } else if (amountField != null) {
+             content = (StackPane) amountField.getScene().lookup("#content");
+         }
+         
+         if (content != null) {
+             content.getChildren().remove(content.getChildren().size() - 1);
+         }
     }
     
     @FXML 
-    void addCrad(ActionEvent event) {
-        // Placeholder
-    }
+    void addCrad(ActionEvent event) { }
 
     // --- Simple View Actions (Standalone Tab) ---
 
@@ -238,6 +267,17 @@ public class PaymentPageController implements Initializable {
         try {
             List<Map> history = restClient.get(RestClient.PAYMENT_SERVICE_URL, "/history", List.class);
             if (history != null) {
+                // Sort by ID Descending (Latest First)
+                history.sort((m1, m2) -> {
+                    try {
+                        Long id1 = Long.parseLong(String.valueOf(m1.get("id")));
+                        Long id2 = Long.parseLong(String.valueOf(m2.get("id")));
+                        return id2.compareTo(id1);
+                    } catch (Exception e) {
+                        return 0;
+                    }
+                });
+
                 for (Map payment : history) {
                     paymentListView.getItems().add(
                         "ID: " + payment.get("id") + " | " + payment.get("amount") + " " + payment.get("currency") + " | " + payment.get("status")
@@ -255,16 +295,33 @@ public class PaymentPageController implements Initializable {
 
     @FXML
     void handleProcessPayment(ActionEvent event) {
-        System.out.println("Processing Payment Clicked");
+        // This is called from the Payment Page (Simple View)
+        if (statusLabel != null) {
+            statusLabel.setText(""); 
+            statusLabel.getStyleClass().removeAll("success-text", "error-text");
+        }
+
         try {
-            double amount = Double.parseDouble(amountField.getText());
-            String currency = currencyField.getText();
+            double amount = 0.0;
+            String currency = "USD";
+
+            if (lblTotalPrice != null && !lblTotalPrice.getText().isEmpty()) {
+                 amount = Double.parseDouble(lblTotalPrice.getText().replace("$", ""));
+            } else if (amountField != null) {
+                 if (amountField.getText().isEmpty()) {
+                    showNotification("Input Error", "Please enter an amount.", true);
+                    amountField.getStyleClass().add("error-border");
+                    return;
+                 }
+                 amount = Double.parseDouble(amountField.getText());
+                 if (currencyComboBox != null) currency = currencyComboBox.getValue();
+            }
 
             java.util.Map<String, Object> request = new java.util.HashMap<>();
             request.put("amount", amount);
             request.put("currency", currency);
             request.put("method", "CREDIT_CARD");
-            request.put("bookingId", 999L); // Manual test ID
+            request.put("bookingId", 999L); 
 
             Map response = restClient.post(
                 RestClient.PAYMENT_SERVICE_URL,
@@ -274,47 +331,84 @@ public class PaymentPageController implements Initializable {
             );
 
             if (response != null) {
-                System.out.println("Payment Processed: " + response);
-                statusLabel.setText("Payment Successful! ID: " + response.get("id"));
-                refreshPaymentHistory(); // Refresh list
+                if (statusLabel != null) {
+                    statusLabel.setText("Payment Successful! ID: " + response.get("id"));
+                    statusLabel.getStyleClass().add("success-text");
+                }
+                if (paymentListView != null) refreshPaymentHistory(); 
                 
-                // Show Success Alert
-                javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
-                alert.setTitle("Payment Successful");
-                alert.setHeaderText(null);
-                alert.setContentText("Payment has been successfully processed!\nTransaction ID: " + response.get("id"));
-                alert.showAndWait();
+                showNotification("Payment Successful", "Transaction ID: " + response.get("id"), false);
+                
+                // If in Booking Flow, Create Reservation and Redirect
+                if (isBookingFlow && flight != null) {
+                     Reservation reservation = new Reservation(
+                        flight, 
+                        Account.getCurrentUser().getId(), 
+                        seat, 
+                        luggageCount, 
+                        luggageWeight
+                    );
+                    
+                    ReservationDao reservationDao = new ReservationDao();
+                    reservationDao.create(reservation);
+                    
+                    // Show booking success alert before redirect
+                    javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
+                    alert.setTitle("Booking Successful");
+                    alert.setHeaderText(null);
+                    alert.setContentText("Reservation Confirmed!\nBooking ID: " + response.get("id"));
+                    alert.showAndWait();
+                    
+                    navigateToTicketPage(reservation);
+                }
+
             } else {
-                System.out.println("Payment Failed (Response null)");
-                statusLabel.setText("Payment Failed.");
+                if (statusLabel != null) {
+                    statusLabel.setText("Payment Failed.");
+                    statusLabel.getStyleClass().add("error-text");
+                }
+                showNotification("Payment Failed", "The server returned no response.", true);
             }
 
         } catch (NumberFormatException e) {
-            statusLabel.setText("Invalid amount.");
+            if (statusLabel != null) statusLabel.setText("Invalid amount format.");
+            if (amountField != null) amountField.getStyleClass().add("error-border");
+            showNotification("Input Error", "Please enter a valid number.", true);
         } catch (Exception e) {
-            System.out.println("Error processing payment: " + e.getMessage());
             e.printStackTrace();
-            statusLabel.setText("Error: " + e.getMessage());
+            if (statusLabel != null) statusLabel.setText("Error: " + e.getMessage());
+             showNotification("System Error", e.getMessage(), true);
+        }
+    }
+
+    private void showNotification(String title, String text, boolean isError) {
+        Notifications notification = Notifications.create()
+                .title(title)
+                .text(text)
+                .hideAfter(Duration.seconds(3))
+                .position(Pos.BOTTOM_RIGHT);
+        
+        if (isError) {
+            notification.showError();
+        } else {
+            notification.showInformation();
         }
     }
 
     @FXML
     void handleGenerateInvoice(ActionEvent event) {
-        System.out.println("Generate Invoice Clicked");
         String selected = paymentListView.getSelectionModel().getSelectedItem();
         if (selected == null) {
-            System.out.println("No payment selected");
-            if (historyStatusLabel != null) historyStatusLabel.setText("Select a payment first.");
+            showNotification("Selection Required", "Please select a payment to generate invoice.", true);
             return;
         }
         
         try {
             String idStr = selected.split("\\|")[0].replace("ID:", "").trim();
             Long id = Long.parseLong(idStr);
-            System.out.println("Requesting Invoice PDF for ID: " + id);
             
-            // Note: RestClient.get returns the object directly. 
-            // If the response is binary, we map it to byte[].class
+            showNotification("Generating Invoice", "Please wait...", false);
+
             byte[] pdfBytes = restClient.get(
                 RestClient.PAYMENT_SERVICE_URL,
                 "/invoice/" + id,
@@ -322,47 +416,46 @@ public class PaymentPageController implements Initializable {
             );
             
             if (pdfBytes != null && pdfBytes.length > 0) {
-                System.out.println("Invoice PDF received. Size: " + pdfBytes.length);
-                
-                // Save to temp file
                 java.io.File tempFile = java.io.File.createTempFile("invoice_" + id + "_", ".pdf");
                 try (java.io.FileOutputStream fos = new java.io.FileOutputStream(tempFile)) {
                     fos.write(pdfBytes);
                 }
                 
-                System.out.println("Saved to: " + tempFile.getAbsolutePath());
-                if (historyStatusLabel != null) historyStatusLabel.setText("Opened Invoice PDF.");
+                showNotification("Invoice Ready", "Opening PDF...", false);
                 
-                // Open file
                 if (java.awt.Desktop.isDesktopSupported()) {
                     java.awt.Desktop.getDesktop().open(tempFile);
                 }
                 
             } else {
-                System.out.println("Invoice API returned null or empty");
-                if (historyStatusLabel != null) historyStatusLabel.setText("Invoice not found.");
+                showNotification("Invoice Error", "Could not retrieve invoice data.", true);
             }
         } catch (Exception e) {
-            System.out.println("Exception in Generate Invoice: " + e.getMessage());
             e.printStackTrace();
-            if (historyStatusLabel != null) historyStatusLabel.setText("Error generating invoice.");
+            showNotification("Error", "Failed to generate invoice: " + e.getMessage(), true);
         }
     }
 
     @FXML
     void handleRefund(ActionEvent event) {
-        System.out.println("Refund Clicked");
         String selected = paymentListView.getSelectionModel().getSelectedItem();
         if (selected == null) {
-            System.out.println("No payment selected");
-            if (historyStatusLabel != null) historyStatusLabel.setText("Select a payment first.");
+            showNotification("Selection Required", "Please select a payment to refund.", true);
+            return;
+        }
+
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle("Confirm Refund");
+        confirm.setHeaderText("Are you sure you want to refund this payment?");
+        confirm.setContentText(selected);
+        
+        if (confirm.showAndWait().get() != ButtonType.OK) {
             return;
         }
 
         try {
             String idStr = selected.split("\\|")[0].replace("ID:", "").trim();
             Long id = Long.parseLong(idStr);
-            System.out.println("Requesting Refund for ID: " + id);
              
              restClient.post(
                  RestClient.PAYMENT_SERVICE_URL,
@@ -371,22 +464,27 @@ public class PaymentPageController implements Initializable {
                  String.class
              );
              
-             if (historyStatusLabel != null) historyStatusLabel.setText("Refund processed.");
-             refreshPaymentHistory(); // Refresh list to show REFUNDED status
+             showNotification("Refund Processed", "Refund request sent successfully.", false);
+             refreshPaymentHistory(); 
              
         } catch (Exception e) {
-             System.out.println("Exception in Refund: " + e.getMessage());
              e.printStackTrace();
-             if (historyStatusLabel != null) historyStatusLabel.setText("Refund request sent.");
+             showNotification("Refund Error", "Failed to process refund: " + e.getMessage(), true);
         }
     }
     
     @FXML
     void handleApplyPromo(ActionEvent event) {
-        System.out.println("Apply Promo Clicked");
+        String code = promoCodeField.getText();
+        if (code == null || code.trim().isEmpty()) {
+             promoCodeField.getStyleClass().add("error-border");
+             showNotification("Input Error", "Please enter a promo code.", true);
+             return;
+        }
+        promoCodeField.getStyleClass().remove("error-border");
+
         try {
             double amount = Double.parseDouble(amountField.getText());
-            String code = promoCodeField.getText();
 
             java.util.Map<String, Object> request = new java.util.HashMap<>();
             request.put("amount", amount);
@@ -399,15 +497,22 @@ public class PaymentPageController implements Initializable {
                 Map.class
             );
 
-            if (response != null) {
+            if (response != null && response.containsKey("discountedAmount")) {
                 Double newAmount = (Double) response.get("discountedAmount");
-                amountField.setText(String.valueOf(newAmount));
-                statusLabel.setText("Promo applied! Old: " + response.get("originalAmount"));
+                amountField.setText(String.format("%.2f", newAmount));
+                if (statusLabel != null) {
+                    statusLabel.setText("Promo applied! Old: " + response.get("originalAmount"));
+                    statusLabel.getStyleClass().add("success-text");
+                }
+                showNotification("Success", "Promo code applied!", false);
+            } else {
+                 promoCodeField.getStyleClass().add("error-border");
+                 showNotification("Invalid Code", "Promo code invalid or expired.", true);
             }
 
         } catch (Exception e) {
-            System.out.println("Exception in Promo: " + e.getMessage());
-            statusLabel.setText("Promo failed.");
+            if (statusLabel != null) statusLabel.setText("Promo failed.");
+            showNotification("Error", "Could not apply promo.", true);
         }
     }
 }
