@@ -20,15 +20,15 @@
     <name>admin-service</name>
     <description>Skynet Admin Service - Spring Boot + JavaFX + SQLite</description>
 
-    <properties>
-        <java.version>17</java.version>
-        <javafx.version>18</javafx.version>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <main.class>application.Launcher</main.class> <!-- Replace with your actual main JavaFX launcher class -->
-    </properties>
+   <properties>
+    <java.version>17</java.version>
+    <javafx.version>18</javafx.version>
+    <maven.compiler.source>17</maven.compiler.source>
+    <maven.compiler.target>17</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <main.class>com.skynet.admin.AdminApplication</main.class> 
+</properties>
 
     <dependencies>
 
