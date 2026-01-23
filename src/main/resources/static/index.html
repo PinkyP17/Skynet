@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skynet Admin Dashboard</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #0b0e14; color: #00ffcc; padding: 20px; }
+        .dashboard { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+        .card { background: #161b22; border: 1px solid #30363d; padding: 20px; border-radius: 8px; }
+        button { background: #00ffcc; color: #0b0e14; border: none; padding: 10px 20px; cursor: pointer; font-weight: bold; border-radius: 4px; }
+        button:hover { background: #00cca3; }
+        pre { background: #000; padding: 10px; border-radius: 4px; color: #fff; overflow-x: auto; font-size: 12px; }
+        h2 { border-bottom: 1px solid #30363d; padding-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <h1>🛰️ SKYNET ADMIN CONTROL CENTER</h1>
+    
+    <div class="dashboard">
+        <div class="card">
+            <h2>Generate Sales Report</h2>
+            <button onclick="fetchSalesReport()">Generate Report</button>
+            <p id="salesResult"></p>
+        </div>
+
+        <div class="card">
+            <h2>System Audit Logs</h2>
+            <button onclick="fetchLogs()">Refresh Logs</button>
+            <pre id="logResult">No logs yet...</pre>
+        </div>
+
+        <div class="card">
+            <h2>Customer Feedback</h2>
+            <button onclick="fetchFeedback()">View All Feedback</button>
+            <div id="feedbackResult"></div>
+        </div>
+
+        <div class="card">
+            <h2>Passenger List</h2>
+            <button onclick="fetchPassengers()">Get Passenger List</button>
+            <ul id="passengerResult"></ul>
+        </div>
+    </div>
+
+    <script>
+        const BASE_URL = "http://localhost:8083/api/admin";
+
+        async function fetchSalesReport() {
+            const response = await fetch(`${BASE_URL}/reports/sales`);
+            const data = await response.text();
+            document.getElementById('salesResult').innerText = data;
+        }
+
+        async function fetchLogs() {
+            const response = await fetch(`${BASE_URL}/logs`);
+            const data = await response.json();
+            document.getElementById('logResult').innerText = JSON.stringify(data, null, 2);
+        }
+
+        async function fetchFeedback() {
+            const response = await fetch(`${BASE_URL}/feedback/category/General`);
+            const data = await response.json();
+            document.getElementById('feedbackResult').innerHTML = data.map(f => 
+                `<p><strong>${f.customerName}:</strong> ${f.content}</p>`).join('');
+        }
+
+        async function fetchPassengers() {
+            const response = await fetch(`${BASE_URL}/passengers`);
+            const data = await response.json();
+            document.getElementById('passengerResult').innerHTML = data.map(p => 
+                `<li>${p}</li>`).join('');
+        }
+    </script>
+</body>
+</html>

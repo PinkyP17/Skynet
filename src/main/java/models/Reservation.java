@@ -1,5 +1,4 @@
 package models;
-
 import data.AccountDao;
 
 public class Reservation {

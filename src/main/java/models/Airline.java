@@ -1,5 +1,4 @@
 package models;
-
 import javafx.scene.image.Image;
 
 import java.util.Objects;

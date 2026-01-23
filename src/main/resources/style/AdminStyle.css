@@ -1,0 +1,50 @@
+/* Main Container - Professional White */
+.main-container {
+    -fx-background-color: #ffffff;
+}
+
+/* Header - Royal Blue */
+.header-label {
+    -fx-font-size: 26px;
+    -fx-text-fill: #0056b3;
+    -fx-font-weight: bold;
+    -fx-padding: 10 0 20 0;
+}
+
+/* Buttons - Blue Gradient */
+.action-button {
+    -fx-background-color: #007bff;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 5;
+    -fx-cursor: hand;
+    -fx-padding: 10 15;
+}
+
+.action-button:hover {
+    -fx-background-color: #0056b3;
+}
+
+/* Data Table - Clean White & Blue */
+.data-table {
+    -fx-background-color: white;
+    -fx-border-color: #dee2e6;
+}
+
+.data-table .column-header {
+    -fx-background-color: #e9ecef;
+    -fx-text-fill: #0056b3;
+}
+
+/* Report Area - Console Style with Blue Border */
+.report-text {
+    -fx-control-inner-background: #f8f9fa;
+    -fx-text-fill: #343a40;
+    -fx-font-family: "Segoe UI", "Monospace";
+    -fx-border-color: #007bff;
+    -fx-border-width: 1;
+}
+
+.main-container { -fx-background-color: #ffffff; }
+.header-label { -fx-text-fill: #0056b3; -fx-font-size: 24px; }
+.action-button { -fx-background-color: #007bff; -fx-text-fill: white; }

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox spacing="20" xmlns:fx="http://javafx.com/fxml" 
+      fx:controller="com.skynet.admin.controller.AdminUIController"
+      stylesheets="@../style/AdminStyle.css" styleClass="main-container">
+    
+    <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+
+    <Label text="SKYNET ADMIN PANEL" styleClass="header-label"/>
+
+    <HBox spacing="15">
+        <Button text="Generate Sales Report" onAction="#handleGenerateReport" styleClass="action-button"/>
+        <Button text="Refresh Passenger List" onAction="#handleRefreshPassengers" styleClass="action-button"/>
+        <Button text="View Feedback" onAction="#handleViewFeedback" styleClass="action-button"/>
+        <Button text="View Audit Logs" onAction="#handleViewLogs" styleClass="action-button"/>
+    </HBox>
+
+    <TabPane fx:id="contentArea" VBox.vgrow="ALWAYS">
+        <Tab text="Data View" closable="false">
+            <TableView fx:id="dataTable" styleClass="data-table">
+                </TableView>
+        </Tab>
+        <Tab text="Report Output" closable="false">
+            <TextArea fx:id="reportArea" editable="false" styleClass="report-text"/>
+        </Tab>
+    </TabPane>
+</VBox>

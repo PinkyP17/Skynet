@@ -7,7 +7,7 @@ import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
-import view.Palette; 
+import view.Palette;
 
 public class Main extends Application {
     
@@ -18,37 +18,80 @@ public class Main extends Application {
     @Override
     public void start(Stage primaryStage) {
         try {
-            // 1. Load the View
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/Signin.fxml"));
+            /* * TOGGLE FOR TESTING:
+             * Change 'showDashboardDirectly' to true to skip the sign-in 
+             * and go straight to your new Admin UI.
+             */
+            boolean showDashboardDirectly = true; 
+
+            if (showDashboardDirectly) {
+                openAdminDashboard();
+            } else {
+                openSigninScreen(primaryStage);
+            }
+
+        } catch (Exception e) {
+            System.err.println("CRITICAL STARTUP ERROR:");
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Logic to open the newly implemented Admin Dashboard
+     */
+    private void openAdminDashboard() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/AdminDashboard.fxml"));
             Parent root = loader.load();
+            Stage stage = new Stage();
             Scene scene = new Scene(root);
 
-            // 2. SAFETY NET: Try to load the Palette (Theme)
-            // If this fails (common error), we catch it so the window still opens.
+            // Apply Palette/Theme logic to the dashboard too
             try {
                 Palette.setDefaultPalette(Palette.LightPalette);
                 Palette.getDefaultPalette().usePalette(scene);
             } catch (Exception e) {
-                System.out.println("Warning: Palette failed to load. Continuing anyway...");
+                System.out.println("Warning: Palette failed for Dashboard.");
             }
 
-            // 3. Setup Window
-            primaryStage.initStyle(StageStyle.DECORATED);
-            primaryStage.setScene(scene);
+            stage.setScene(scene);
+            stage.setTitle("Skynet Admin Dashboard");
             
-            // 4. SAFETY NET: Try to load Icon
+            // Add the Skynet Icon to the new window
             try {
-                primaryStage.getIcons().add(new Image(getClass().getResourceAsStream("/images/SkynetLogo.png")));
-            } catch (Exception e) {
-                System.out.println("Warning: Icon missing. Continuing...");
-            }
+                stage.getIcons().add(new Image(getClass().getResourceAsStream("/images/SkynetLogo.png")));
+            } catch (Exception e) {}
 
-            primaryStage.show();
-
+            stage.show();
+            System.out.println("✅ Admin Dashboard Launched successfully.");
         } catch (Exception e) {
-            // This catches major FXML errors and prints them so you can see them
-            System.err.println("CRITICAL STARTUP ERROR:");
+            System.err.println("Error loading Admin Dashboard:");
             e.printStackTrace();
         }
+    }
+
+    /**
+     * Original logic to open the Sign-in Screen
+     */
+    private void openSigninScreen(Stage primaryStage) throws Exception {
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/Signin.fxml"));
+        Parent root = loader.load();
+        Scene scene = new Scene(root);
+
+        try {
+            Palette.setDefaultPalette(Palette.LightPalette);
+            Palette.getDefaultPalette().usePalette(scene);
+        } catch (Exception e) {
+            System.out.println("Warning: Palette failed to load.");
+        }
+
+        primaryStage.initStyle(StageStyle.DECORATED);
+        primaryStage.setScene(scene);
+        
+        try {
+            primaryStage.getIcons().add(new Image(getClass().getResourceAsStream("/images/SkynetLogo.png")));
+        } catch (Exception e) {}
+
+        primaryStage.show();
     }
 }
